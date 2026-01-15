@@ -21,7 +21,7 @@ app.use(cors());
 app.use(express.json());
 
 // Serve static files (frontend)
-app.use(express.static(path.join(__dirname, 'frontend')));
+app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
 // Request logging
 app.use((req, res, next) => {
@@ -63,19 +63,22 @@ app.get('/api/health', (req, res) => {
 // FRONTEND ROUTES
 // ==================================================================
 
+
+// API 404
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'API endpoint not found' });
+});
+
+
 // Serve index.html for all non-API routes (SPA support)
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
 });
 
 // ==================================================================
 // ERROR HANDLING
 // ==================================================================
 
-// 404 handler for API routes
-app.use('/api/*', (req, res) => {
-  res.status(404).json({ error: 'API endpoint not found' });
-});
 
 // Global error handler
 app.use((err, req, res, next) => {

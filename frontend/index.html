@@ -382,39 +382,40 @@
   <p class="t" id="toastTitle">Saved</p>
   <p class="m" id="toastMsg">Done.</p>
 </div>
-
 <script>
-// ===================================================================
-// DEMO DATA STORE (In-Memory Simulation of SQLite Database)
-// ===================================================================
-// NOTE: This frontend is designed to work with your SQLite schema
-// For production, replace these functions with actual SQLite queries
-// ===================================================================
+/**
+ * frontend/index.html (refactored)
+ * - No demo DB
+ * - Uses backend API (/api/*) backed by SQLite
+ * - Works when served from http://localhost:3000 OR opened as file:// (falls back to localhost)
+ *
+ * Assumes backend endpoints from your README:
+ *  - /api/health
+ *  - /api/inventory, /api/inventory/low-stock, /api/inventory/:id
+ *  - /api/clients, /api/clients/:id
+ *  - /api/vendors, /api/vendors/:id
+ *  - /api/sales, /api/supply
+ *  - /api/reports/dashboard (or /api/reports/inventory + /api/reports/transactions)
+ */
 
-const DB = {
-  inventory: [],
-  clients: [],
-  vendors: [],
-  sales: [],
-  sale_items: [],
-  supply_orders: [],
-  supply_items: []
-};
+// ============================
+// Config
+// ============================
 
-let nextId = {
-  item: 1,
-  client: 1,
-  vendor: 1,
-  sale: 1,
-  sale_item: 1,
-  supply_order: 1,
-  supply_item: 1
-};
+const API_BASE = (() => {
+  // If served by backend (http://localhost:3000), use same origin.
+  // If opened as file://, use hard fallback to localhost.
+  if (location.protocol === "file:") return "http://localhost:3000/api";
+  return `${location.origin}/api`;
+})();
 
-// Utility functions
+// ============================
+// Utilities
+// ============================
+
 function money(n) {
   const x = Number(n || 0);
-  return x.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  return x.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function safeInt(v, fallback = 0) {
@@ -427,253 +428,216 @@ function safeFloat(v, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-function nowISO() {
-  return new Date().toISOString();
-}
-
 function formatWhen(iso) {
   const d = new Date(iso);
-  return d.toLocaleString(undefined, {year:"numeric", month:"short", day:"2-digit", hour:"2-digit", minute:"2-digit"});
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 }
 
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
   }[c]));
 }
 
-// ===================================================================
-// DATABASE OPERATIONS (Simulating SQLite)
-// ===================================================================
-
-// Inventory operations
-function getInventory() {
-  return DB.inventory.sort((a, b) => a.item_name.localeCompare(b.item_name));
+function badgeForStock(q, threshold) {
+  if (threshold == null) return `<span class="badge">Stock ${q}</span>`;
+  if (q <= 0) return `<span class="badge bad">Out (${q})</span>`;
+  if (q <= threshold) return `<span class="badge warn">Low (${q})</span>`;
+  return `<span class="badge ok">OK (${q})</span>`;
 }
 
-function getInventoryById(id) {
-  return DB.inventory.find(i => i.item_id === id);
+// ============================
+// Toast
+// ============================
+
+const toastEl = document.getElementById("toast");
+function toast(title, msg) {
+  document.getElementById("toastTitle").textContent = title;
+  document.getElementById("toastMsg").textContent = msg;
+  toastEl.classList.add("show");
+  setTimeout(() => toastEl.classList.remove("show"), 2400);
 }
 
-function addInventoryItem(item) {
-  const newItem = {
-    item_id: nextId.item++,
-    item_name: item.item_name,
-    description: item.description || null,
-    quantity: item.quantity || 0,
-    unit_price: item.unit_price,
-    reorder_level: item.reorder_level || 10,
-    notes: item.notes || null,
-    created_date: nowISO()
-  };
-  DB.inventory.push(newItem);
-  return newItem;
-}
+// ============================
+// API Client
+// ============================
 
-function updateInventoryItem(id, updates) {
-  const item = getInventoryById(id);
-  if (!item) return null;
-  Object.assign(item, updates);
-  return item;
-}
+async function apiFetch(path, opts = {}) {
+  const url = `${API_BASE}${path}`;
+  const method = opts.method || "GET";
+  const headers = { ...(opts.headers || {}) };
 
-function deleteInventoryItem(id) {
-  const idx = DB.inventory.findIndex(i => i.item_id === id);
-  if (idx >= 0) DB.inventory.splice(idx, 1);
-}
-
-// Client operations
-function getClients() {
-  return DB.clients.sort((a, b) => a.client_name.localeCompare(b.client_name));
-}
-
-function getClientById(id) {
-  return DB.clients.find(c => c.client_id === id);
-}
-
-function addClient(client) {
-  const newClient = {
-    client_id: nextId.client++,
-    client_name: client.client_name,
-    email: client.email || null,
-    phone: client.phone || null,
-    address: client.address || null,
-    notes: client.notes || null,
-    created_date: nowISO()
-  };
-  DB.clients.push(newClient);
-  return newClient;
-}
-
-function updateClient(id, updates) {
-  const client = getClientById(id);
-  if (!client) return null;
-  Object.assign(client, updates);
-  return client;
-}
-
-function deleteClient(id) {
-  const idx = DB.clients.findIndex(c => c.client_id === id);
-  if (idx >= 0) DB.clients.splice(idx, 1);
-}
-
-// Vendor operations
-function getVendors() {
-  return DB.vendors.sort((a, b) => a.vendor_name.localeCompare(b.vendor_name));
-}
-
-function getVendorById(id) {
-  return DB.vendors.find(v => v.vendor_id === id);
-}
-
-function addVendor(vendor) {
-  const newVendor = {
-    vendor_id: nextId.vendor++,
-    vendor_name: vendor.vendor_name,
-    email: vendor.email || null,
-    phone: vendor.phone || null,
-    address: vendor.address || null,
-    notes: vendor.notes || null,
-    created_date: nowISO()
-  };
-  DB.vendors.push(newVendor);
-  return newVendor;
-}
-
-function updateVendor(id, updates) {
-  const vendor = getVendorById(id);
-  if (!vendor) return null;
-  Object.assign(vendor, updates);
-  return vendor;
-}
-
-function deleteVendor(id) {
-  const idx = DB.vendors.findIndex(v => v.vendor_id === id);
-  if (idx >= 0) DB.vendors.splice(idx, 1);
-}
-
-// Supply order operations
-function createSupplyOrder(order) {
-  const newOrder = {
-    supply_order_id: nextId.supply_order++,
-    vendor_id: order.vendor_id || null,
-    order_date: nowISO(),
-    notes: order.notes || null
-  };
-  DB.supply_orders.push(newOrder);
-
-  // Add supply items and update inventory
-  for (const item of order.items) {
-    const supplyItem = {
-      supply_item_id: nextId.supply_item++,
-      supply_order_id: newOrder.supply_order_id,
-      item_id: item.item_id,
-      quantity: item.quantity,
-      cost_price: item.cost_price,
-      notes: item.notes || null
-    };
-    DB.supply_items.push(supplyItem);
-
-    // Trigger: Update inventory
-    const invItem = getInventoryById(item.item_id);
-    if (invItem) {
-      invItem.quantity += item.quantity;
-    }
+  let body = opts.body;
+  if (body != null && typeof body === "object" && !(body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+    body = JSON.stringify(body);
   }
 
-  return newOrder;
-}
-
-function getSupplyOrders() {
-  return DB.supply_orders.sort((a, b) => b.order_date.localeCompare(a.order_date));
-}
-
-function getSupplyOrderDetails(orderId) {
-  const items = DB.supply_items.filter(si => si.supply_order_id === orderId);
-  return items.map(si => {
-    const item = getInventoryById(si.item_id);
-    const order = DB.supply_orders.find(o => o.supply_order_id === orderId);
-    const vendor = order?.vendor_id ? getVendorById(order.vendor_id) : null;
-    return {
-      ...si,
-      item_name: item?.item_name,
-      vendor_name: vendor?.vendor_name,
-      order_date: order?.order_date,
-      subtotal: si.quantity * si.cost_price
-    };
-  });
-}
-
-// Sales operations
-function createSale(sale) {
-  // Check inventory availability first
-  for (const item of sale.items) {
-    const invItem = getInventoryById(item.item_id);
-    if (!invItem || invItem.quantity < item.quantity) {
-      throw new Error(`Insufficient stock for ${invItem?.item_name || 'item'}`);
-    }
+  let res;
+  try {
+    res = await fetch(url, { method, headers, body });
+  } catch (e) {
+    // Network / server down
+    throw new Error("Backend not reachable. Start the server (npm start).");
   }
 
-  const newSale = {
-    sale_id: nextId.sale++,
-    client_id: sale.client_id || null,
-    sale_date: nowISO(),
-    notes: sale.notes || null
-  };
-  DB.sales.push(newSale);
-
-  // Add sale items and update inventory
-  for (const item of sale.items) {
-    const saleItem = {
-      sale_item_id: nextId.sale_item++,
-      sale_id: newSale.sale_id,
-      item_id: item.item_id,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      notes: item.notes || null
-    };
-    DB.sale_items.push(saleItem);
-
-    // Trigger: Update inventory
-    const invItem = getInventoryById(item.item_id);
-    if (invItem) {
-      invItem.quantity -= item.quantity;
-    }
+  // Try parse JSON, but allow empty responses
+  let data = null;
+  const text = await res.text();
+  if (text) {
+    try { data = JSON.parse(text); } catch { data = text; }
   }
 
-  return newSale;
+  if (!res.ok) {
+    // Prefer server message if available
+    const msg =
+      (data && typeof data === "object" && (data.error || data.message)) ||
+      (typeof data === "string" && data) ||
+      `Request failed (${res.status})`;
+    throw new Error(msg);
+  }
+
+  return data;
 }
 
-function getSales() {
-  return DB.sales.sort((a, b) => b.sale_date.localeCompare(a.sale_date));
+async function refreshHealth() {
+  const el = document.getElementById("dbStatus");
+  try {
+    const h = await apiFetch("/health");
+    el.textContent = (h && h.database === "connected") ? "API Connected" : "API Ready";
+    el.classList.remove("badge", "bad", "warn", "ok");
+    el.className = "pill";
+  } catch (e) {
+    el.textContent = "API Offline";
+    // keep styling simple
+  }
 }
 
-function getSaleDetails(saleId) {
-  const items = DB.sale_items.filter(si => si.sale_id === saleId);
-  return items.map(si => {
-    const item = getInventoryById(si.item_id);
-    const sale = DB.sales.find(s => s.sale_id === saleId);
-    const client = sale?.client_id ? getClientById(sale.client_id) : null;
-    return {
-      ...si,
-      item_name: item?.item_name,
-      client_name: client?.client_name,
-      sale_date: sale?.sale_date,
-      subtotal: si.quantity * si.unit_price
-    };
-  });
+// ============================
+// Cached State (client-side only)
+// ============================
+
+const state = {
+  inventory: [],
+  clients: [],
+  vendors: [],
+  sales: [],
+  supply: [],
+  lowStock: [],
+  reports: {
+    inventory: null,
+    transactions: null,
+    dashboard: null
+  }
+};
+
+async function loadInventory() {
+  state.inventory = await apiFetch("/inventory");
+  return state.inventory;
 }
 
-// View: Low stock items
-function getLowStockItems() {
-  return DB.inventory
-    .filter(i => i.quantity <= i.reorder_level)
-    .sort((a, b) => a.quantity - b.quantity);
+async function loadLowStock() {
+  // view is backed by SQLite view in your DB
+  state.lowStock = await apiFetch("/inventory/low-stock");
+  return state.lowStock;
 }
 
-// ===================================================================
-// UI HELPER FUNCTIONS
-// ===================================================================
+async function loadClients() {
+  state.clients = await apiFetch("/clients");
+  return state.clients;
+}
+
+async function loadVendors() {
+  state.vendors = await apiFetch("/vendors");
+  return state.vendors;
+}
+
+async function loadSales() {
+  state.sales = await apiFetch("/sales");
+  return state.sales;
+}
+
+async function loadSupply() {
+  state.supply = await apiFetch("/supply");
+  return state.supply;
+}
+
+async function loadReports() {
+  // Prefer dashboard endpoint if it exists
+  try {
+    state.reports.dashboard = await apiFetch("/reports/dashboard");
+    return state.reports.dashboard;
+  } catch {
+    // fallback to separate endpoints if needed
+    const inv = await apiFetch("/reports/inventory");
+    const tx = await apiFetch("/reports/transactions");
+    state.reports.dashboard = { inventory: inv, transactions: tx };
+    return state.reports.dashboard;
+  }
+}
+
+// ============================
+// CRUD actions
+// ============================
+
+async function createInventoryItem(item) {
+  return await apiFetch("/inventory", { method: "POST", body: item });
+}
+
+async function updateInventoryItem(id, item) {
+  return await apiFetch(`/inventory/${id}`, { method: "PUT", body: item });
+}
+
+async function deleteInventoryItem(id) {
+  return await apiFetch(`/inventory/${id}`, { method: "DELETE" });
+}
+
+async function createClient(client) {
+  return await apiFetch("/clients", { method: "POST", body: client });
+}
+
+async function updateClient(id, client) {
+  return await apiFetch(`/clients/${id}`, { method: "PUT", body: client });
+}
+
+async function deleteClient(id) {
+  return await apiFetch(`/clients/${id}`, { method: "DELETE" });
+}
+
+async function createVendor(vendor) {
+  return await apiFetch("/vendors", { method: "POST", body: vendor });
+}
+
+async function updateVendor(id, vendor) {
+  return await apiFetch(`/vendors/${id}`, { method: "PUT", body: vendor });
+}
+
+async function deleteVendor(id) {
+  return await apiFetch(`/vendors/${id}`, { method: "DELETE" });
+}
+
+async function createSupplyOrder(order) {
+  return await apiFetch("/supply", { method: "POST", body: order });
+}
+
+async function createSale(sale) {
+  return await apiFetch("/sales", { method: "POST", body: sale });
+}
+
+// ============================
+// UI + Navigation
+// ============================
 
 const viewEl = document.getElementById("view");
 const pageTitle = document.getElementById("pageTitle");
@@ -684,44 +648,84 @@ function setPage(title, subtitle) {
   pageSubtitle.textContent = subtitle || "";
 }
 
-const toastEl = document.getElementById("toast");
-function toast(title, msg) {
-  document.getElementById("toastTitle").textContent = title;
-  document.getElementById("toastMsg").textContent = msg;
-  toastEl.classList.add("show");
-  setTimeout(() => toastEl.classList.remove("show"), 2400);
+let currentView = "dashboard";
+
+async function goto(view) {
+  currentView = view;
+  setActiveNav(view);
+
+  const searchVal = document.getElementById("globalSearch").value || "";
+
+  try {
+    if (view === "dashboard") await renderDashboard();
+    else if (view === "inventory") await renderInventory(searchVal);
+    else if (view === "clients") await renderClients();
+    else if (view === "vendors") await renderVendors();
+    else if (view === "supply") await renderSupply();
+    else if (view === "sales") await renderSales();
+    else if (view === "reports") await renderReports();
+  } catch (e) {
+    toast("Error", e.message);
+    // Keep user from seeing blank page on error
+    viewEl.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+  }
 }
 
-function badgeForStock(q, threshold) {
-  if (threshold == null) return `<span class="badge">Stock ${q}</span>`;
-  if (q <= 0) return `<span class="badge bad">Out (${q})</span>`;
-  if (q <= threshold) return `<span class="badge warn">Low (${q})</span>`;
-  return `<span class="badge ok">OK (${q})</span>`;
+function setActiveNav(view) {
+  document.querySelectorAll("#nav button").forEach(b => {
+    b.classList.toggle("active", b.dataset.view === view);
+  });
 }
 
-// ===================================================================
-// VIEW RENDERERS
-// ===================================================================
+document.getElementById("nav").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-view]");
+  if (!btn) return;
+  goto(btn.dataset.view);
+});
 
-function renderDashboard() {
+document.getElementById("globalSearch").addEventListener("input", (e) => {
+  const val = e.target.value;
+  if (currentView === "inventory") renderInventory(val);
+});
+
+// ============================
+// View Renderers (async)
+// ============================
+
+async function renderDashboard() {
   setPage("Dashboard", "Overview at a glance");
-  
-  const lowStock = getLowStockItems();
-  const recentSales = getSales().slice(0, 5);
-  const recentSupply = getSupplyOrders().slice(0, 5);
-  
-  const totalValue = DB.inventory.reduce((sum, i) => sum + (i.quantity * i.unit_price), 0);
-  const totalItems = DB.inventory.reduce((sum, i) => sum + i.quantity, 0);
+
+  // Load only what dashboard needs
+  const [lowStock, sales, supply, invSummary] = await Promise.all([
+    loadLowStock(),
+    loadSales(),
+    loadSupply(),
+    (async () => {
+      // Try reports first (fast), fallback to calc from inventory
+      try {
+        const r = await loadReports();
+        if (r && r.total_value != null) return r; // if dashboard returns flat keys
+        if (r && r.inventory) return r.inventory; // if dashboard returns nested
+      } catch {}
+      const inv = await loadInventory();
+      const totalValue = inv.reduce((sum, i) => sum + (Number(i.quantity) * Number(i.unit_price)), 0);
+      const totalItems = inv.reduce((sum, i) => sum + Number(i.quantity || 0), 0);
+      return { total_value: totalValue, total_items: totalItems, low_stock_count: lowStock.length };
+    })()
+  ]);
+
+  const recentSales = (sales || []).slice(0, 5);
+  const recentSupply = (supply || []).slice(0, 5);
 
   viewEl.innerHTML = `
     <div class="kpi-row">
       <div class="kpi">
         <div class="label">Total Inventory Value</div>
-        <div class="value">€${money(totalValue)}</div>
+        <div class="value">€${money(invSummary.total_value || 0)}</div>
       </div>
       <div class="kpi">
         <div class="label">Total Items in Stock</div>
-        <div class="value">${totalItems}</div>
+        <div class="value">${safeInt(invSummary.total_items || 0, 0)}</div>
       </div>
       <div class="kpi">
         <div class="label">Low Stock Alerts</div>
@@ -736,7 +740,7 @@ function renderDashboard() {
             <h3>Low Stock Items</h3>
             <div class="sub">Items at or below reorder level</div>
           </div>
-          <button class="btn mini primary" onclick="goto('inventory')">View All</button>
+          <button class="btn mini primary" id="dashInvBtn">View All</button>
         </div>
         <div class="bd">
           ${lowStock.length ? `
@@ -752,8 +756,8 @@ function renderDashboard() {
                 ${lowStock.slice(0, 5).map(item => `
                   <tr>
                     <td><strong>${esc(item.item_name)}</strong></td>
-                    <td>${badgeForStock(item.quantity, item.reorder_level)}</td>
-                    <td class="muted">${item.reorder_level}</td>
+                    <td>${badgeForStock(Number(item.quantity), Number(item.reorder_level))}</td>
+                    <td class="muted">${esc(item.reorder_level)}</td>
                   </tr>
                 `).join("")}
               </tbody>
@@ -770,36 +774,30 @@ function renderDashboard() {
           </div>
         </div>
         <div class="bd">
-          <h4 style="margin:0 0 8px;font-size:13px;color:var(--muted)">Recent Sales</h4>
+          <h4 style="margin:0 0 8px;font-size:13px;">Recent Sales</h4>
           ${recentSales.length ? `
             <table style="margin-bottom:16px">
               <tbody>
-                ${recentSales.map(sale => {
-                  const client = sale.client_id ? getClientById(sale.client_id) : null;
-                  return `
-                    <tr>
-                      <td class="muted" style="font-size:11px">${formatWhen(sale.sale_date)}</td>
-                      <td>${client ? esc(client.client_name) : "Walk-in"}</td>
-                    </tr>
-                  `;
-                }).join("")}
+                ${recentSales.map(sale => `
+                  <tr>
+                    <td class="muted" style="font-size:11px">${formatWhen(sale.sale_date)}</td>
+                    <td>${esc(sale.client_name || "Walk-in")}</td>
+                  </tr>
+                `).join("")}
               </tbody>
             </table>
           ` : `<div class="empty" style="margin-bottom:16px">No sales yet</div>`}
-          
-          <h4 style="margin:0 0 8px;font-size:13px;color:var(--muted)">Recent Supply Orders</h4>
+
+          <h4 style="margin:0 0 8px;font-size:13px;">Recent Supply Orders</h4>
           ${recentSupply.length ? `
             <table>
               <tbody>
-                ${recentSupply.map(order => {
-                  const vendor = order.vendor_id ? getVendorById(order.vendor_id) : null;
-                  return `
-                    <tr>
-                      <td class="muted" style="font-size:11px">${formatWhen(order.order_date)}</td>
-                      <td>${vendor ? esc(vendor.vendor_name) : "—"}</td>
-                    </tr>
-                  `;
-                }).join("")}
+                ${recentSupply.map(order => `
+                  <tr>
+                    <td class="muted" style="font-size:11px">${formatWhen(order.order_date)}</td>
+                    <td>${esc(order.vendor_name || "—")}</td>
+                  </tr>
+                `).join("")}
               </tbody>
             </table>
           ` : `<div class="empty">No supply orders yet</div>`}
@@ -807,15 +805,20 @@ function renderDashboard() {
       </div>
     </div>
   `;
+
+  document.getElementById("dashInvBtn").onclick = () => goto("inventory");
 }
 
-function renderInventory(filter = "") {
+async function renderInventory(filter = "") {
   setPage("Inventory", "Manage your products");
+
+  const inv = await loadInventory();
+
   const q = filter.trim().toLowerCase();
-  
-  const items = getInventory().filter(i => {
+  const items = inv.filter(i => {
     if (!q) return true;
-    return i.item_name.toLowerCase().includes(q) || (i.description || "").toLowerCase().includes(q);
+    return String(i.item_name || "").toLowerCase().includes(q)
+      || String(i.description || "").toLowerCase().includes(q);
   });
 
   viewEl.innerHTML = `
@@ -846,12 +849,12 @@ function renderInventory(filter = "") {
                       <div style="font-weight:800">${esc(item.item_name)}</div>
                       <div class="muted" style="font-size:12px">${esc(item.description || "")}</div>
                     </td>
-                    <td class="right">${badgeForStock(item.quantity, item.reorder_level)}</td>
+                    <td class="right">${badgeForStock(Number(item.quantity), Number(item.reorder_level))}</td>
                     <td class="right muted">€${money(item.unit_price)}</td>
                     <td class="right">
                       <div class="row-actions">
-                        <button class="btn mini" onclick="editItem(${item.item_id})">Edit</button>
-                        <button class="btn mini danger" onclick="deleteItem(${item.item_id})">Delete</button>
+                        <button class="btn mini" data-action="editItem" data-id="${item.item_id}">Edit</button>
+                        <button class="btn mini danger" data-action="deleteItem" data-id="${item.item_id}">Delete</button>
                       </div>
                     </td>
                   </tr>
@@ -891,7 +894,7 @@ function renderInventory(filter = "") {
               <label>Notes</label>
               <input id="if_notes" placeholder="Optional notes" />
             </div>
-            
+
             <div class="split" style="justify-content:flex-end; margin-top:10px;">
               <button type="button" class="btn ghost" id="if_cancel" style="display:none;">Cancel</button>
               <button class="btn primary" type="submit">Save Item</button>
@@ -902,48 +905,55 @@ function renderInventory(filter = "") {
     </div>
   `;
 
+  function startAddItem() {
+    document.getElementById("itemFormTitle").textContent = "Add Item";
+    document.getElementById("if_id").value = "";
+    document.getElementById("if_name").value = "";
+    document.getElementById("if_desc").value = "";
+    document.getElementById("if_price").value = "";
+    document.getElementById("if_reorder").value = "10";
+    document.getElementById("if_notes").value = "";
+    document.getElementById("if_cancel").style.display = "none";
+  }
+
+  function loadItemIntoForm(id) {
+    const item = state.inventory.find(i => Number(i.item_id) === Number(id));
+    if (!item) return;
+    document.getElementById("itemFormTitle").textContent = "Edit Item";
+    document.getElementById("if_id").value = item.item_id;
+    document.getElementById("if_name").value = item.item_name || "";
+    document.getElementById("if_desc").value = item.description || "";
+    document.getElementById("if_price").value = item.unit_price ?? "";
+    document.getElementById("if_reorder").value = item.reorder_level ?? 10;
+    document.getElementById("if_notes").value = item.notes || "";
+    document.getElementById("if_cancel").style.display = "inline-flex";
+  }
+
   document.getElementById("addItemBtn").onclick = startAddItem;
-  hookItemForm();
-}
+  document.getElementById("if_cancel").onclick = startAddItem;
 
-function startAddItem() {
-  document.getElementById("itemFormTitle").textContent = "Add Item";
-  document.getElementById("if_id").value = "";
-  document.getElementById("if_name").value = "";
-  document.getElementById("if_desc").value = "";
-  document.getElementById("if_price").value = "";
-  document.getElementById("if_reorder").value = "10";
-  document.getElementById("if_notes").value = "";
-  document.getElementById("if_cancel").style.display = "none";
-}
+  viewEl.querySelectorAll('[data-action="editItem"]').forEach(btn => {
+    btn.addEventListener("click", () => loadItemIntoForm(btn.dataset.id));
+  });
 
-function editItem(id) {
-  const item = getInventoryById(id);
-  if (!item) return;
-  document.getElementById("itemFormTitle").textContent = "Edit Item";
-  document.getElementById("if_id").value = item.item_id;
-  document.getElementById("if_name").value = item.item_name;
-  document.getElementById("if_desc").value = item.description || "";
-  document.getElementById("if_price").value = item.unit_price;
-  document.getElementById("if_reorder").value = item.reorder_level;
-  document.getElementById("if_notes").value = item.notes || "";
-  document.getElementById("if_cancel").style.display = "inline-flex";
-}
+  viewEl.querySelectorAll('[data-action="deleteItem"]').forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const id = safeInt(btn.dataset.id, 0);
+      if (!id) return;
+      if (!confirm("Delete this item?")) return;
+      try {
+        await deleteInventoryItem(id);
+        toast("Deleted", "Item removed");
+        await renderInventory(document.getElementById("globalSearch").value);
+      } catch (e) {
+        toast("Error", e.message);
+      }
+    });
+  });
 
-function deleteItem(id) {
-  if (!confirm("Delete this item?")) return;
-  deleteInventoryItem(id);
-  toast("Deleted", "Item removed");
-  renderInventory(document.getElementById("globalSearch").value);
-}
-
-function hookItemForm() {
-  const form = document.getElementById("itemForm");
-  const cancel = document.getElementById("if_cancel");
-  cancel.onclick = startAddItem;
-
-  form.onsubmit = (e) => {
+  document.getElementById("itemForm").onsubmit = async (e) => {
     e.preventDefault();
+
     const id = safeInt(document.getElementById("if_id").value, 0);
     const name = document.getElementById("if_name").value.trim();
     const desc = document.getElementById("if_desc").value.trim();
@@ -956,35 +966,41 @@ function hookItemForm() {
       return;
     }
 
-    if (id) {
-      updateInventoryItem(id, {
-        item_name: name,
-        description: desc || null,
-        unit_price: price,
-        reorder_level: reorder,
-        notes: notes || null
-      });
-      toast("Updated", "Item saved");
-    } else {
-      addInventoryItem({
-        item_name: name,
-        description: desc || null,
-        quantity: 0,
-        unit_price: price,
-        reorder_level: reorder,
-        notes: notes || null
-      });
-      toast("Created", "New item added");
-    }
+    try {
+      if (id) {
+        await updateInventoryItem(id, {
+          item_name: name,
+          description: desc || null,
+          unit_price: price,
+          reorder_level: reorder,
+          notes: notes || null
+        });
+        toast("Updated", "Item saved");
+      } else {
+        await createInventoryItem({
+          item_name: name,
+          description: desc || null,
+          quantity: 0,
+          unit_price: price,
+          reorder_level: reorder,
+          notes: notes || null
+        });
+        toast("Created", "New item added");
+      }
 
-    renderInventory(document.getElementById("globalSearch").value);
-    setTimeout(startAddItem, 50);
+      await renderInventory(document.getElementById("globalSearch").value);
+      setTimeout(startAddItem, 50);
+    } catch (e2) {
+      toast("Error", e2.message);
+    }
   };
+
+  startAddItem();
 }
 
-function renderClients() {
+async function renderClients() {
   setPage("Clients", "Manage your customers");
-  const clients = getClients();
+  const clients = await loadClients();
 
   viewEl.innerHTML = `
     <div class="grid">
@@ -1019,8 +1035,8 @@ function renderClients() {
                     </td>
                     <td class="right">
                       <div class="row-actions">
-                        <button class="btn mini" onclick="editClient(${c.client_id})">Edit</button>
-                        <button class="btn mini danger" onclick="deleteClient_UI(${c.client_id})">Delete</button>
+                        <button class="btn mini" data-action="editClient" data-id="${c.client_id}">Edit</button>
+                        <button class="btn mini danger" data-action="deleteClient" data-id="${c.client_id}">Delete</button>
                       </div>
                     </td>
                   </tr>
@@ -1060,7 +1076,7 @@ function renderClients() {
               <label>Notes</label>
               <textarea id="cf_notes" placeholder="Optional notes"></textarea>
             </div>
-            
+
             <div class="split" style="justify-content:flex-end; margin-top:10px;">
               <button type="button" class="btn ghost" id="cf_cancel" style="display:none;">Cancel</button>
               <button class="btn primary" type="submit">Save Client</button>
@@ -1071,48 +1087,55 @@ function renderClients() {
     </div>
   `;
 
+  function startAddClient() {
+    document.getElementById("clientFormTitle").textContent = "Add Client";
+    document.getElementById("cf_id").value = "";
+    document.getElementById("cf_name").value = "";
+    document.getElementById("cf_email").value = "";
+    document.getElementById("cf_phone").value = "";
+    document.getElementById("cf_address").value = "";
+    document.getElementById("cf_notes").value = "";
+    document.getElementById("cf_cancel").style.display = "none";
+  }
+
+  function loadClientIntoForm(id) {
+    const c = state.clients.find(x => Number(x.client_id) === Number(id));
+    if (!c) return;
+    document.getElementById("clientFormTitle").textContent = "Edit Client";
+    document.getElementById("cf_id").value = c.client_id;
+    document.getElementById("cf_name").value = c.client_name || "";
+    document.getElementById("cf_email").value = c.email || "";
+    document.getElementById("cf_phone").value = c.phone || "";
+    document.getElementById("cf_address").value = c.address || "";
+    document.getElementById("cf_notes").value = c.notes || "";
+    document.getElementById("cf_cancel").style.display = "inline-flex";
+  }
+
   document.getElementById("addClientBtn").onclick = startAddClient;
-  hookClientForm();
-}
+  document.getElementById("cf_cancel").onclick = startAddClient;
 
-function startAddClient() {
-  document.getElementById("clientFormTitle").textContent = "Add Client";
-  document.getElementById("cf_id").value = "";
-  document.getElementById("cf_name").value = "";
-  document.getElementById("cf_email").value = "";
-  document.getElementById("cf_phone").value = "";
-  document.getElementById("cf_address").value = "";
-  document.getElementById("cf_notes").value = "";
-  document.getElementById("cf_cancel").style.display = "none";
-}
+  viewEl.querySelectorAll('[data-action="editClient"]').forEach(btn => {
+    btn.addEventListener("click", () => loadClientIntoForm(btn.dataset.id));
+  });
 
-function editClient(id) {
-  const client = getClientById(id);
-  if (!client) return;
-  document.getElementById("clientFormTitle").textContent = "Edit Client";
-  document.getElementById("cf_id").value = client.client_id;
-  document.getElementById("cf_name").value = client.client_name;
-  document.getElementById("cf_email").value = client.email || "";
-  document.getElementById("cf_phone").value = client.phone || "";
-  document.getElementById("cf_address").value = client.address || "";
-  document.getElementById("cf_notes").value = client.notes || "";
-  document.getElementById("cf_cancel").style.display = "inline-flex";
-}
+  viewEl.querySelectorAll('[data-action="deleteClient"]').forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const id = safeInt(btn.dataset.id, 0);
+      if (!id) return;
+      if (!confirm("Delete this client?")) return;
+      try {
+        await deleteClient(id);
+        toast("Deleted", "Client removed");
+        await renderClients();
+      } catch (e) {
+        toast("Error", e.message);
+      }
+    });
+  });
 
-function deleteClient_UI(id) {
-  if (!confirm("Delete this client?")) return;
-  deleteClient(id);
-  toast("Deleted", "Client removed");
-  renderClients();
-}
-
-function hookClientForm() {
-  const form = document.getElementById("clientForm");
-  const cancel = document.getElementById("cf_cancel");
-  cancel.onclick = startAddClient;
-
-  form.onsubmit = (e) => {
+  document.getElementById("clientForm").onsubmit = async (e) => {
     e.preventDefault();
+
     const id = safeInt(document.getElementById("cf_id").value, 0);
     const name = document.getElementById("cf_name").value.trim();
     const email = document.getElementById("cf_email").value.trim();
@@ -1125,34 +1148,40 @@ function hookClientForm() {
       return;
     }
 
-    if (id) {
-      updateClient(id, {
-        client_name: name,
-        email: email || null,
-        phone: phone || null,
-        address: address || null,
-        notes: notes || null
-      });
-      toast("Updated", "Client saved");
-    } else {
-      addClient({
-        client_name: name,
-        email: email || null,
-        phone: phone || null,
-        address: address || null,
-        notes: notes || null
-      });
-      toast("Created", "New client added");
-    }
+    try {
+      if (id) {
+        await updateClient(id, {
+          client_name: name,
+          email: email || null,
+          phone: phone || null,
+          address: address || null,
+          notes: notes || null
+        });
+        toast("Updated", "Client saved");
+      } else {
+        await createClient({
+          client_name: name,
+          email: email || null,
+          phone: phone || null,
+          address: address || null,
+          notes: notes || null
+        });
+        toast("Created", "New client added");
+      }
 
-    renderClients();
-    setTimeout(startAddClient, 50);
+      await renderClients();
+      setTimeout(startAddClient, 50);
+    } catch (e2) {
+      toast("Error", e2.message);
+    }
   };
+
+  startAddClient();
 }
 
-function renderVendors() {
+async function renderVendors() {
   setPage("Vendors", "Manage your suppliers");
-  const vendors = getVendors();
+  const vendors = await loadVendors();
 
   viewEl.innerHTML = `
     <div class="grid">
@@ -1187,8 +1216,8 @@ function renderVendors() {
                     </td>
                     <td class="right">
                       <div class="row-actions">
-                        <button class="btn mini" onclick="editVendor(${v.vendor_id})">Edit</button>
-                        <button class="btn mini danger" onclick="deleteVendor_UI(${v.vendor_id})">Delete</button>
+                        <button class="btn mini" data-action="editVendor" data-id="${v.vendor_id}">Edit</button>
+                        <button class="btn mini danger" data-action="deleteVendor" data-id="${v.vendor_id}">Delete</button>
                       </div>
                     </td>
                   </tr>
@@ -1228,7 +1257,7 @@ function renderVendors() {
               <label>Notes</label>
               <textarea id="vf_notes" placeholder="Optional notes"></textarea>
             </div>
-            
+
             <div class="split" style="justify-content:flex-end; margin-top:10px;">
               <button type="button" class="btn ghost" id="vf_cancel" style="display:none;">Cancel</button>
               <button class="btn primary" type="submit">Save Vendor</button>
@@ -1239,48 +1268,55 @@ function renderVendors() {
     </div>
   `;
 
+  function startAddVendor() {
+    document.getElementById("vendorFormTitle").textContent = "Add Vendor";
+    document.getElementById("vf_id").value = "";
+    document.getElementById("vf_name").value = "";
+    document.getElementById("vf_email").value = "";
+    document.getElementById("vf_phone").value = "";
+    document.getElementById("vf_address").value = "";
+    document.getElementById("vf_notes").value = "";
+    document.getElementById("vf_cancel").style.display = "none";
+  }
+
+  function loadVendorIntoForm(id) {
+    const v = state.vendors.find(x => Number(x.vendor_id) === Number(id));
+    if (!v) return;
+    document.getElementById("vendorFormTitle").textContent = "Edit Vendor";
+    document.getElementById("vf_id").value = v.vendor_id;
+    document.getElementById("vf_name").value = v.vendor_name || "";
+    document.getElementById("vf_email").value = v.email || "";
+    document.getElementById("vf_phone").value = v.phone || "";
+    document.getElementById("vf_address").value = v.address || "";
+    document.getElementById("vf_notes").value = v.notes || "";
+    document.getElementById("vf_cancel").style.display = "inline-flex";
+  }
+
   document.getElementById("addVendorBtn").onclick = startAddVendor;
-  hookVendorForm();
-}
+  document.getElementById("vf_cancel").onclick = startAddVendor;
 
-function startAddVendor() {
-  document.getElementById("vendorFormTitle").textContent = "Add Vendor";
-  document.getElementById("vf_id").value = "";
-  document.getElementById("vf_name").value = "";
-  document.getElementById("vf_email").value = "";
-  document.getElementById("vf_phone").value = "";
-  document.getElementById("vf_address").value = "";
-  document.getElementById("vf_notes").value = "";
-  document.getElementById("vf_cancel").style.display = "none";
-}
+  viewEl.querySelectorAll('[data-action="editVendor"]').forEach(btn => {
+    btn.addEventListener("click", () => loadVendorIntoForm(btn.dataset.id));
+  });
 
-function editVendor(id) {
-  const vendor = getVendorById(id);
-  if (!vendor) return;
-  document.getElementById("vendorFormTitle").textContent = "Edit Vendor";
-  document.getElementById("vf_id").value = vendor.vendor_id;
-  document.getElementById("vf_name").value = vendor.vendor_name;
-  document.getElementById("vf_email").value = vendor.email || "";
-  document.getElementById("vf_phone").value = vendor.phone || "";
-  document.getElementById("vf_address").value = vendor.address || "";
-  document.getElementById("vf_notes").value = vendor.notes || "";
-  document.getElementById("vf_cancel").style.display = "inline-flex";
-}
+  viewEl.querySelectorAll('[data-action="deleteVendor"]').forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const id = safeInt(btn.dataset.id, 0);
+      if (!id) return;
+      if (!confirm("Delete this vendor?")) return;
+      try {
+        await deleteVendor(id);
+        toast("Deleted", "Vendor removed");
+        await renderVendors();
+      } catch (e) {
+        toast("Error", e.message);
+      }
+    });
+  });
 
-function deleteVendor_UI(id) {
-  if (!confirm("Delete this vendor?")) return;
-  deleteVendor(id);
-  toast("Deleted", "Vendor removed");
-  renderVendors();
-}
-
-function hookVendorForm() {
-  const form = document.getElementById("vendorForm");
-  const cancel = document.getElementById("vf_cancel");
-  cancel.onclick = startAddVendor;
-
-  form.onsubmit = (e) => {
+  document.getElementById("vendorForm").onsubmit = async (e) => {
     e.preventDefault();
+
     const id = safeInt(document.getElementById("vf_id").value, 0);
     const name = document.getElementById("vf_name").value.trim();
     const email = document.getElementById("vf_email").value.trim();
@@ -1293,37 +1329,45 @@ function hookVendorForm() {
       return;
     }
 
-    if (id) {
-      updateVendor(id, {
-        vendor_name: name,
-        email: email || null,
-        phone: phone || null,
-        address: address || null,
-        notes: notes || null
-      });
-      toast("Updated", "Vendor saved");
-    } else {
-      addVendor({
-        vendor_name: name,
-        email: email || null,
-        phone: phone || null,
-        address: address || null,
-        notes: notes || null
-      });
-      toast("Created", "New vendor added");
-    }
+    try {
+      if (id) {
+        await updateVendor(id, {
+          vendor_name: name,
+          email: email || null,
+          phone: phone || null,
+          address: address || null,
+          notes: notes || null
+        });
+        toast("Updated", "Vendor saved");
+      } else {
+        await createVendor({
+          vendor_name: name,
+          email: email || null,
+          phone: phone || null,
+          address: address || null,
+          notes: notes || null
+        });
+        toast("Created", "New vendor added");
+      }
 
-    renderVendors();
-    setTimeout(startAddVendor, 50);
+      await renderVendors();
+      setTimeout(startAddVendor, 50);
+    } catch (e2) {
+      toast("Error", e2.message);
+    }
   };
+
+  startAddVendor();
 }
 
-function renderSupply() {
+async function renderSupply() {
   setPage("Supply Orders", "Receive stock from vendors");
-  
-  const orders = getSupplyOrders();
-  const vendors = getVendors();
-  const inventory = getInventory();
+
+  const [orders, vendors, inventory] = await Promise.all([
+    loadSupply(),
+    loadVendors(),
+    loadInventory()
+  ]);
 
   viewEl.innerHTML = `
     <div class="grid">
@@ -1351,9 +1395,9 @@ function renderSupply() {
 
             <div class="hr"></div>
             <h4 style="margin:8px 0;font-size:13px;">Line Items</h4>
-            
+
             <div class="line-items" id="supplyLines"></div>
-            
+
             <div class="split" style="margin-top:10px;">
               <button type="button" class="btn" id="addSupplyLineBtn">+ Add Line</button>
               <button class="btn primary" type="submit">Create Order</button>
@@ -1380,16 +1424,13 @@ function renderSupply() {
                 </tr>
               </thead>
               <tbody>
-                ${orders.slice(0, 10).map(o => {
-                  const vendor = o.vendor_id ? getVendorById(o.vendor_id) : null;
-                  return `
-                    <tr>
-                      <td class="muted" style="font-size:11px">${formatWhen(o.order_date)}</td>
-                      <td>${vendor ? esc(vendor.vendor_name) : "—"}</td>
-                      <td class="muted">${esc(o.notes || "")}</td>
-                    </tr>
-                  `;
-                }).join("")}
+                ${orders.slice(0, 10).map(o => `
+                  <tr>
+                    <td class="muted" style="font-size:11px">${formatWhen(o.order_date)}</td>
+                    <td>${esc(o.vendor_name || "—")}</td>
+                    <td class="muted">${esc(o.notes || "")}</td>
+                  </tr>
+                `).join("")}
               </tbody>
             </table>
           ` : `<div class="empty">No supply orders yet</div>`}
@@ -1400,11 +1441,11 @@ function renderSupply() {
 
   const supplyLines = [];
   const linesEl = document.getElementById("supplyLines");
-  
+
   function addSupplyLine() {
     const lineId = Date.now() + Math.random();
     supplyLines.push(lineId);
-    
+
     linesEl.insertAdjacentHTML("beforeend", `
       <div class="li" data-line="${lineId}">
         <div class="field">
@@ -1426,7 +1467,7 @@ function renderSupply() {
         </div>
       </div>
     `);
-    
+
     linesEl.querySelector(`[data-line="${lineId}"] .so_remove`).onclick = () => {
       const idx = supplyLines.indexOf(lineId);
       if (idx >= 0) supplyLines.splice(idx, 1);
@@ -1435,46 +1476,52 @@ function renderSupply() {
   }
 
   document.getElementById("addSupplyLineBtn").onclick = addSupplyLine;
-  
-  document.getElementById("supplyForm").onsubmit = (e) => {
+
+  document.getElementById("supplyForm").onsubmit = async (e) => {
     e.preventDefault();
-    
+
     const vendorId = safeInt(document.getElementById("so_vendor").value, 0) || null;
     const notes = document.getElementById("so_notes").value.trim();
-    
+
     const items = [];
     for (const lineId of supplyLines) {
       const el = linesEl.querySelector(`[data-line="${lineId}"]`);
       if (!el) continue;
-      
+
       const itemId = safeInt(el.querySelector(".so_item").value, 0);
       const qty = safeInt(el.querySelector(".so_qty").value, 0);
       const cost = safeFloat(el.querySelector(".so_cost").value, 0);
-      
+
       if (itemId && qty > 0 && cost > 0) {
         items.push({ item_id: itemId, quantity: qty, cost_price: cost, notes: null });
       }
     }
-    
+
     if (items.length === 0) {
       toast("Error", "Add at least one line item");
       return;
     }
-    
-    createSupplyOrder({ vendor_id: vendorId, notes: notes || null, items });
-    toast("Created", "Supply order added, inventory updated");
-    renderSupply();
+
+    try {
+      await createSupplyOrder({ vendor_id: vendorId, notes: notes || null, items });
+      toast("Created", "Supply order added, inventory updated");
+      await renderSupply();
+    } catch (err) {
+      toast("Error", err.message);
+    }
   };
-  
+
   if (inventory.length) addSupplyLine();
 }
 
-function renderSales() {
+async function renderSales() {
   setPage("Sales", "Create sales transactions");
-  
-  const sales = getSales();
-  const clients = getClients();
-  const inventory = getInventory();
+
+  const [sales, clients, inventory] = await Promise.all([
+    loadSales(),
+    loadClients(),
+    loadInventory()
+  ]);
 
   viewEl.innerHTML = `
     <div class="grid">
@@ -1502,9 +1549,9 @@ function renderSales() {
 
             <div class="hr"></div>
             <h4 style="margin:8px 0;font-size:13px;">Line Items</h4>
-            
+
             <div class="line-items" id="saleLines"></div>
-            
+
             <div class="split" style="margin-top:10px;">
               <button type="button" class="btn" id="addSaleLineBtn">+ Add Line</button>
               <button class="btn primary" type="submit">Create Sale</button>
@@ -1531,16 +1578,13 @@ function renderSales() {
                 </tr>
               </thead>
               <tbody>
-                ${sales.slice(0, 10).map(s => {
-                  const client = s.client_id ? getClientById(s.client_id) : null;
-                  return `
-                    <tr>
-                      <td class="muted" style="font-size:11px">${formatWhen(s.sale_date)}</td>
-                      <td>${client ? esc(client.client_name) : "Walk-in"}</td>
-                      <td class="muted">${esc(s.notes || "")}</td>
-                    </tr>
-                  `;
-                }).join("")}
+                ${sales.slice(0, 10).map(s => `
+                  <tr>
+                    <td class="muted" style="font-size:11px">${formatWhen(s.sale_date)}</td>
+                    <td>${esc(s.client_name || "Walk-in")}</td>
+                    <td class="muted">${esc(s.notes || "")}</td>
+                  </tr>
+                `).join("")}
               </tbody>
             </table>
           ` : `<div class="empty">No sales yet</div>`}
@@ -1551,11 +1595,11 @@ function renderSales() {
 
   const saleLines = [];
   const linesEl = document.getElementById("saleLines");
-  
+
   function addSaleLine() {
     const lineId = Date.now() + Math.random();
     saleLines.push(lineId);
-    
+
     linesEl.insertAdjacentHTML("beforeend", `
       <div class="li" data-line="${lineId}">
         <div class="field">
@@ -1577,72 +1621,85 @@ function renderSales() {
         </div>
       </div>
     `);
-    
-    linesEl.querySelector(`[data-line="${lineId}"] .s_remove`).onclick = () => {
+
+    const row = linesEl.querySelector(`[data-line="${lineId}"]`);
+    row.querySelector(".s_remove").onclick = () => {
       const idx = saleLines.indexOf(lineId);
       if (idx >= 0) saleLines.splice(idx, 1);
-      linesEl.querySelector(`[data-line="${lineId}"]`).remove();
+      row.remove();
     };
-    
+
     // Auto-fill price from inventory
-    const itemSelect = linesEl.querySelector(`[data-line="${lineId}"] .s_item`);
-    const priceInput = linesEl.querySelector(`[data-line="${lineId}"] .s_price`);
+    const itemSelect = row.querySelector(".s_item");
+    const priceInput = row.querySelector(".s_price");
     itemSelect.onchange = () => {
       const itemId = safeInt(itemSelect.value, 0);
-      const item = getInventoryById(itemId);
+      const item = inventory.find(i => Number(i.item_id) === Number(itemId));
       if (item) priceInput.value = item.unit_price;
     };
     if (inventory.length) itemSelect.onchange();
   }
 
   document.getElementById("addSaleLineBtn").onclick = addSaleLine;
-  
-  document.getElementById("saleForm").onsubmit = (e) => {
+
+  document.getElementById("saleForm").onsubmit = async (e) => {
     e.preventDefault();
-    
+
     const clientId = safeInt(document.getElementById("s_client").value, 0) || null;
     const notes = document.getElementById("s_notes").value.trim();
-    
+
     const items = [];
     for (const lineId of saleLines) {
       const el = linesEl.querySelector(`[data-line="${lineId}"]`);
       if (!el) continue;
-      
+
       const itemId = safeInt(el.querySelector(".s_item").value, 0);
       const qty = safeInt(el.querySelector(".s_qty").value, 0);
       const price = safeFloat(el.querySelector(".s_price").value, 0);
-      
+
       if (itemId && qty > 0 && price > 0) {
         items.push({ item_id: itemId, quantity: qty, unit_price: price, notes: null });
       }
     }
-    
+
     if (items.length === 0) {
       toast("Error", "Add at least one line item");
       return;
     }
-    
+
     try {
-      createSale({ client_id: clientId, notes: notes || null, items });
+      await createSale({ client_id: clientId, notes: notes || null, items });
       toast("Created", "Sale completed, inventory updated");
-      renderSales();
+      await renderSales();
     } catch (err) {
       toast("Error", err.message);
     }
   };
-  
+
   if (inventory.length) addSaleLine();
 }
 
-function renderReports() {
+async function renderReports() {
   setPage("Reports", "Sales and inventory analytics");
-  
-  const totalValue = DB.inventory.reduce((sum, i) => sum + (i.quantity * i.unit_price), 0);
-  const totalItems = DB.inventory.reduce((sum, i) => sum + i.quantity, 0);
-  
-  const totalSales = DB.sale_items.reduce((sum, si) => sum + (si.quantity * si.unit_price), 0);
-  const totalSupplyCost = DB.supply_items.reduce((sum, si) => sum + (si.quantity * si.cost_price), 0);
-  
+
+  // Prefer server-side computed report data (matches DB)
+  const r = await loadReports();
+
+  // Support either flat or nested response
+  const inv = r.inventory || r;
+  const tx = r.transactions || r;
+
+  // Reasonable defaults if server returns only one section
+  const totalValue = Number(inv.total_value ?? inv.total_inventory_value ?? 0);
+  const totalItems = Number(inv.total_items ?? inv.total_units ?? 0);
+  const lowStockCount = Number(inv.low_stock_count ?? 0);
+
+  const salesRevenue = Number(tx.sales_revenue ?? 0);
+  const salesCount = Number(tx.sales_count ?? 0);
+  const supplyCost = Number(tx.supply_cost ?? 0);
+  const supplyCount = Number(tx.supply_count ?? 0);
+  const grossMargin = Number(tx.gross_margin ?? (salesRevenue - supplyCost));
+
   viewEl.innerHTML = `
     <div class="grid">
       <div class="card">
@@ -1657,10 +1714,11 @@ function renderReports() {
             <div class="kpi">
               <div class="label">Total Inventory Value</div>
               <div class="value">€${money(totalValue)}</div>
+              ${lowStockCount ? `<div class="hint">${lowStockCount} low stock items</div>` : ``}
             </div>
             <div class="kpi">
               <div class="label">Total Units</div>
-              <div class="value">${totalItems}</div>
+              <div class="value">${safeInt(totalItems, 0)}</div>
             </div>
           </div>
         </div>
@@ -1677,21 +1735,21 @@ function renderReports() {
           <div class="kpi-row" style="grid-template-columns:1fr 1fr">
             <div class="kpi">
               <div class="label">Total Sales Revenue</div>
-              <div class="value">€${money(totalSales)}</div>
-              <div class="hint">${DB.sales.length} transactions</div>
+              <div class="value">€${money(salesRevenue)}</div>
+              <div class="hint">${safeInt(salesCount, 0)} transactions</div>
             </div>
             <div class="kpi">
               <div class="label">Total Supply Cost</div>
-              <div class="value">€${money(totalSupplyCost)}</div>
-              <div class="hint">${DB.supply_orders.length} orders</div>
+              <div class="value">€${money(supplyCost)}</div>
+              <div class="hint">${safeInt(supplyCount, 0)} orders</div>
             </div>
           </div>
-          
+
           <div class="hr"></div>
-          
+
           <div class="kpi">
             <div class="label">Gross Margin (Est.)</div>
-            <div class="value">€${money(totalSales - totalSupplyCost)}</div>
+            <div class="value">€${money(grossMargin)}</div>
             <div class="hint">Sales revenue minus supply costs</div>
           </div>
         </div>
@@ -1700,101 +1758,86 @@ function renderReports() {
   `;
 }
 
-// ===================================================================
-// NAVIGATION
-// ===================================================================
+// ============================
+// Demo buttons: Seed & Reset (now via API)
+// ============================
 
-let currentView = "dashboard";
+document.getElementById("seedBtn").onclick = async () => {
+  // Keep behavior: seed demo data, but now it persists in SQLite.
+  try {
+    if (!confirm("Load demo data into SQLite?")) return;
 
-function goto(view) {
-  currentView = view;
-  setActiveNav(view);
+    // Load current to avoid duplicates by name (simple)
+    const [inv, clients, vendors] = await Promise.all([loadInventory(), loadClients(), loadVendors()]);
 
-  const searchVal = document.getElementById("globalSearch").value || "";
-  
-  if (view === "dashboard") renderDashboard();
-  else if (view === "inventory") renderInventory(searchVal);
-  else if (view === "clients") renderClients();
-  else if (view === "vendors") renderVendors();
-  else if (view === "supply") renderSupply();
-  else if (view === "sales") renderSales();
-  else if (view === "reports") renderReports();
-}
+    const hasInv = (name) => inv.some(i => String(i.item_name).toLowerCase() === name.toLowerCase());
+    const hasClient = (name) => clients.some(c => String(c.client_name).toLowerCase() === name.toLowerCase());
+    const hasVendor = (name) => vendors.some(v => String(v.vendor_name).toLowerCase() === name.toLowerCase());
 
-function setActiveNav(view) {
-  document.querySelectorAll("#nav button").forEach(b => {
-    b.classList.toggle("active", b.dataset.view === view);
-  });
-}
+    if (!hasInv("Coffee Beans 1kg")) await createInventoryItem({ item_name: "Coffee Beans 1kg", description: "Arabica blend", quantity: 0, unit_price: 19.50, reorder_level: 5, notes: null });
+    if (!hasInv("Sugar 1kg")) await createInventoryItem({ item_name: "Sugar 1kg", description: "White sugar", quantity: 0, unit_price: 2.40, reorder_level: 10, notes: null });
+    if (!hasInv("Milk 1L")) await createInventoryItem({ item_name: "Milk 1L", description: "Fresh milk", quantity: 0, unit_price: 1.60, reorder_level: 20, notes: null });
 
-document.getElementById("nav").addEventListener("click", (e) => {
-  const btn = e.target.closest("button[data-view]");
-  if (!btn) return;
-  goto(btn.dataset.view);
-});
+    if (!hasClient("Café Central")) await createClient({ client_name: "Café Central", email: "cafe@central.com", phone: "+31 20 123 4567", address: "Amsterdam", notes: null });
+    if (!hasClient("Bakery Bliss")) await createClient({ client_name: "Bakery Bliss", email: "info@bakery.com", phone: "+31 20 987 6543", address: "Rotterdam", notes: null });
 
-document.getElementById("globalSearch").addEventListener("input", (e) => {
-  const val = e.target.value;
-  if (currentView === "inventory") renderInventory(val);
-});
+    if (!hasVendor("Global Coffee Supply")) await createVendor({ vendor_name: "Global Coffee Supply", email: "sales@globalcoffee.com", phone: "+31 20 111 2222", address: "Utrecht", notes: null });
 
-// ===================================================================
-// SEED & RESET
-// ===================================================================
-
-document.getElementById("seedBtn").onclick = () => {
-  if (DB.inventory.length && !confirm("This will add demo data. Continue?")) return;
-  
-  // Add demo inventory
-  addInventoryItem({ item_name: "Coffee Beans 1kg", description: "Arabica blend", quantity: 0, unit_price: 19.50, reorder_level: 5, notes: null });
-  addInventoryItem({ item_name: "Sugar 1kg", description: "White sugar", quantity: 0, unit_price: 2.40, reorder_level: 10, notes: null });
-  addInventoryItem({ item_name: "Milk 1L", description: "Fresh milk", quantity: 0, unit_price: 1.60, reorder_level: 20, notes: null });
-  
-  // Add demo clients
-  addClient({ client_name: "Café Central", email: "cafe@central.com", phone: "+31 20 123 4567", address: "Amsterdam", notes: null });
-  addClient({ client_name: "Bakery Bliss", email: "info@bakery.com", phone: "+31 20 987 6543", address: "Rotterdam", notes: null });
-  
-  // Add demo vendors
-  addVendor({ vendor_name: "Global Coffee Supply", email: "sales@globalcoffee.com", phone: "+31 20 111 2222", address: "Utrecht", notes: null });
-  
-  toast("Loaded", "Demo data added");
-  goto("dashboard");
+    toast("Loaded", "Demo data added to SQLite");
+    await goto("dashboard");
+  } catch (e) {
+    toast("Error", e.message);
+  }
 };
 
-document.getElementById("resetBtn").onclick = () => {
-  if (!confirm("This will delete ALL data. Continue?")) return;
-  
-  DB.inventory = [];
-  DB.clients = [];
-  DB.vendors = [];
-  DB.sales = [];
-  DB.sale_items = [];
-  DB.supply_orders = [];
-  DB.supply_items = [];
-  
-  nextId = {
-    item: 1,
-    client: 1,
-    vendor: 1,
-    sale: 1,
-    sale_item: 1,
-    supply_order: 1,
-    supply_item: 1
-  };
-  
-  toast("Reset", "All data cleared");
-  goto("dashboard");
+document.getElementById("resetBtn").onclick = async () => {
+  // No server endpoint for wipe. We do it client-side by deleting records.
+  // Order matters due to FK constraints: delete sales & supply first, then masters.
+  try {
+    if (!confirm("This will delete ALL data in SQLite. Continue?")) return;
+
+    // Delete sales
+    const sales = await loadSales();
+    for (const s of sales) {
+      // backend has DELETE /api/sales/:id per README, but your routes may or may not.
+      // If you don't have it, comment this block and add the route.
+      await apiFetch(`/sales/${s.sale_id}`, { method: "DELETE" });
+    }
+
+    // Delete supply
+    const supply = await loadSupply();
+    for (const o of supply) {
+      await apiFetch(`/supply/${o.supply_order_id}`, { method: "DELETE" });
+    }
+
+    // Delete inventory, clients, vendors
+    const inv = await loadInventory();
+    for (const i of inv) await deleteInventoryItem(i.item_id);
+
+    const clients = await loadClients();
+    for (const c of clients) await deleteClient(c.client_id);
+
+    const vendors = await loadVendors();
+    for (const v of vendors) await deleteVendor(v.vendor_id);
+
+    toast("Reset", "All data cleared from SQLite");
+    await goto("dashboard");
+  } catch (e) {
+    toast("Error", e.message);
+  }
 };
 
-// ===================================================================
-// INITIALIZE
-// ===================================================================
+// ============================
+// Init
+// ============================
 
-function init() {
-  goto("dashboard");
+async function init() {
+  await refreshHealth();
+  await goto("dashboard");
 }
 
 init();
 </script>
+
 </body>
 </html>
