@@ -349,11 +349,11 @@
 
     <div class="side-footer">
       <div class="split">
-        <span class="pill">Demo Mode</span>
-        <span class="pill" id="dbStatus">SQLite Ready</span>
+        <span class="pill">Production</span>
+        <span class="pill" id="dbStatus">API Offline</span>
       </div>
       <div style="margin-top:10px;">
-        Tip: Try "Supply Orders" then "Sales"
+        Server: <span class="muted" id="serverHint">—</span>
       </div>
     </div>
   </aside>
@@ -370,8 +370,7 @@
           <span style="opacity:.85">🔎</span>
           <input id="globalSearch" placeholder="Search inventory..." />
         </div>
-        <button class="btn" id="seedBtn" title="Load demo data">Load Demo</button>
-        <button class="btn danger" id="resetBtn" title="Clear all data">Reset</button>
+        <button class="btn mini" id="reconnectBtn" title="Reconnect to local server">Reconnect</button>
       </div>
     </div>
 
@@ -382,8 +381,7 @@
 <div class="toast" id="toast">
   <p class="t" id="toastTitle">Saved</p>
   <p class="m" id="toastMsg">Done.</p>
-</div>
-<script>
+</div><script>
 /**
  * Production frontend:
  * - No demo buttons
