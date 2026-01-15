@@ -5,7 +5,7 @@
 Your project should be organized like this:
 
 ```
-inventory-management/
+inventory-app/
 ├── backend/
 │   ├── routes/
 │   │   ├── inventory.js
@@ -16,14 +16,21 @@ inventory-management/
 │   │   └── reports.js
 │   ├── db.js
 │   ├── server.js
-│   └── package.json
+│   ├── package.json
+│   └── package-lock.json
 ├── frontend/
-│   └── index.html
-└── database/
-    ├── schema.sql
-    ├── views.sql
-    ├── deploy.sh
-    └── inventory.db
+│   ├── index.html
+│   ├── app.js
+│   └── styles.css
+├── database/
+│   ├── schema.sql
+│   ├── views_sql.sql
+│   ├── deploy.sh
+│   └── inventory.db
+├── archive/
+│   └── R
+├── project structure
+└── README.md
 ```
 
 ## Installation Steps
