@@ -1,0 +1,6 @@
+# Ignore archive folder
+/archive/
+
+# Ignore the "project structure" file
+/project structure
+
