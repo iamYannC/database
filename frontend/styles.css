@@ -308,6 +308,17 @@
       color: var(--muted);
       font-size: 12px;
     }
+    button.pill, .pill-btn{
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.02);
+      color: var(--muted);
+      cursor:pointer;
+      font-weight:700;
+    }
+    button.pill:disabled, .pill-btn:disabled{
+      opacity:.6;
+      cursor:not-allowed;
+    }
     .hr{ height:1px; background: var(--line); margin: 12px 0; }
     @media (max-width: 980px){
       .app{ grid-template-columns: 1fr; }

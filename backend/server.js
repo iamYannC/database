@@ -6,6 +6,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { db } = require('./db');
+const exportRoutes = require('./routes/export');
 
 // Initialize Express app
 const app = express();
@@ -47,6 +48,7 @@ app.use('/api/vendors', vendorRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/supply', supplyRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/export', exportRoutes);
 
 // ==================================================================
 // HEALTH CHECK

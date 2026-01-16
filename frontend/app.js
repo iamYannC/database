@@ -51,16 +51,37 @@ async function apiFetch(path, opts = {}) {
   return data;
 }
 
+async function exportWorkbook(){
+  const btn = document.getElementById("exportBtn");
+  if(btn){ btn.disabled = true; btn.textContent = "Exporting..."; }
+  try{
+    const res = await fetch(`${API_BASE}/export/xlsx`);
+    if(!res.ok) throw new Error(`Export failed (${res.status})`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `inventory-export-${new Date().toISOString().replace(/[:.]/g,"-")}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast("Exported","Workbook downloaded");
+  }catch(e){
+    toast("Error", e.message || "Export failed");
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = "Export Excel"; }
+  }
+}
+
 // ---- Status
 async function refreshHealth() {
   const el = document.getElementById("dbStatus");
   const hint = document.getElementById("serverHint");
-  hint.textContent = API_BASE.replace("/api", "");
+  if (hint) hint.textContent = API_BASE.replace("/api", "");
   try {
     const h = await apiFetch("/health");
-    el.textContent = (h && h.database === "connected") ? "API Connected" : "API Ready";
+    if (el) el.textContent = (h && h.database === "connected") ? "API Connected" : "API Ready";
   } catch (e) {
-    el.textContent = "API Offline";
+    if (el) el.textContent = "API Offline";
   }
 }
 
@@ -837,6 +858,9 @@ document.getElementById("nav").addEventListener("click",(e)=>{
   if(!btn) return;
   goto(btn.dataset.view);
 });
+
+const exportBtn = document.getElementById("exportBtn");
+if(exportBtn) exportBtn.onclick = exportWorkbook;
 
 document.getElementById("globalSearch").addEventListener("input",(e)=>{
   if(currentView==="inventory") renderInventory(e.target.value||"");
