@@ -5,6 +5,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const { db } = require('./db');
 
 // Initialize Express app
 const app = express();
@@ -52,11 +53,22 @@ app.use('/api/reports', reportRoutes);
 // ==================================================================
 
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    database: 'connected'
-  });
+  try {
+    const row = db.prepare('SELECT 1 as ok').get();
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      database: row && row.ok === 1 ? 'connected' : 'unknown'
+    });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(500).json({
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      database: 'error',
+      message: error.message
+    });
+  }
 });
 
 // ==================================================================

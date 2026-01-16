@@ -79,14 +79,16 @@ function setActive(view){
   document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active", b.dataset.view===view));
 }
 
-const state = { inventory:[], clients:[], vendors:[], sales:[], supply:[] };
+const state = { inventory:[], clients:[], vendors:[], sales:[], saleDetails:[], supply:[], supplyDetails:[] };
 
 async function loadInventory(){ state.inventory = await apiFetch("/inventory"); return state.inventory; }
 async function loadLowStock(){ return await apiFetch("/inventory/low-stock"); }
 async function loadClients(){ state.clients = await apiFetch("/clients"); return state.clients; }
 async function loadVendors(){ state.vendors = await apiFetch("/vendors"); return state.vendors; }
 async function loadSales(){ state.sales = await apiFetch("/sales"); return state.sales; }
+async function loadSaleDetails(){ state.saleDetails = await apiFetch("/sales/details"); return state.saleDetails; }
 async function loadSupply(){ state.supply = await apiFetch("/supply"); return state.supply; }
+async function loadSupplyDetails(){ state.supplyDetails = await apiFetch("/supply/details"); return state.supplyDetails; }
 async function loadReports(){
   try { return await apiFetch("/reports/dashboard"); }
   catch {
@@ -289,10 +291,500 @@ async function renderInventory(filter=""){
   resetForm();
 }
 
-async function renderClients(){ setPage("Clients","Manage your customers"); viewEl.innerHTML=`<div class="empty">Clients UI unchanged in production build (use your existing script if needed).</div>`; }
-async function renderVendors(){ setPage("Vendors","Manage your suppliers"); viewEl.innerHTML=`<div class="empty">Vendors UI unchanged in production build (use your existing script if needed).</div>`; }
-async function renderSupply(){ setPage("Supply Orders","Receive stock"); viewEl.innerHTML=`<div class="empty">Supply UI unchanged in production build (use your existing script if needed).</div>`; }
-async function renderSales(){ setPage("Sales","Create sales"); viewEl.innerHTML=`<div class="empty">Sales UI unchanged in production build (use your existing script if needed).</div>`; }
+async function renderClients(){
+  setPage("Clients","Manage your customers");
+  const clients = await loadClients();
+  viewEl.innerHTML = `
+    <div class="grid">
+      <div class="card">
+        <div class="hd">
+          <div><h3>Clients</h3><div class="sub">${clients.length} clients</div></div>
+          <button class="btn mini" id="refreshClients">Refresh</button>
+        </div>
+        <div class="bd">
+          ${clients.length ? `
+            <table>
+              <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th class="right">Actions</th></tr></thead>
+              <tbody>
+                ${clients.map(c=>`
+                  <tr>
+                    <td><strong>${esc(c.client_name)}</strong><div class="muted" style="font-size:12px">${esc(c.address||"")}</div></td>
+                    <td class="muted">${esc(c.email||"")}</td>
+                    <td class="muted">${esc(c.phone||"")}</td>
+                    <td class="right">
+                      <div class="row-actions">
+                        <button class="btn mini" data-act="edit" data-id="${c.client_id}">Edit</button>
+                        <button class="btn mini danger" data-act="del" data-id="${c.client_id}">Delete</button>
+                      </div>
+                    </td>
+                  </tr>`).join("")}
+              </tbody>
+            </table>` : `<div class="empty">No clients yet</div>`}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><h3 id="clientFormTitle">Add Client</h3></div>
+        <div class="bd">
+          <form id="clientForm">
+            <input type="hidden" id="cf_id" />
+            <div class="field"><label>Name *</label><input id="cf_name" required /></div>
+            <div class="field"><label>Email</label><input id="cf_email" type="email" /></div>
+            <div class="two-col">
+              <div class="field"><label>Phone</label><input id="cf_phone" /></div>
+              <div class="field"><label>Address</label><input id="cf_addr" /></div>
+            </div>
+            <div class="field"><label>Notes</label><textarea id="cf_notes"></textarea></div>
+            <div class="split" style="justify-content:flex-end;margin-top:10px;">
+              <button type="button" class="btn ghost" id="cf_cancel" style="display:none;">Cancel</button>
+              <button class="btn primary" type="submit">Save</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+
+  function resetForm(){
+    document.getElementById("clientFormTitle").textContent="Add Client";
+    document.getElementById("cf_id").value="";
+    document.getElementById("cf_name").value="";
+    document.getElementById("cf_email").value="";
+    document.getElementById("cf_phone").value="";
+    document.getElementById("cf_addr").value="";
+    document.getElementById("cf_notes").value="";
+    document.getElementById("cf_cancel").style.display="none";
+  }
+  function loadForm(id){
+    const c = state.clients.find(x=>Number(x.client_id)===Number(id));
+    if(!c) return;
+    document.getElementById("clientFormTitle").textContent="Edit Client";
+    document.getElementById("cf_id").value=c.client_id;
+    document.getElementById("cf_name").value=c.client_name||"";
+    document.getElementById("cf_email").value=c.email||"";
+    document.getElementById("cf_phone").value=c.phone||"";
+    document.getElementById("cf_addr").value=c.address||"";
+    document.getElementById("cf_notes").value=c.notes||"";
+    document.getElementById("cf_cancel").style.display="inline-flex";
+  }
+
+  document.getElementById("refreshClients").onclick=()=>renderClients();
+  document.getElementById("cf_cancel").onclick=resetForm;
+
+  document.getElementById("clientForm").onsubmit=async (e)=>{
+    e.preventDefault();
+    const id = safeInt(document.getElementById("cf_id").value,0);
+    const client_name = document.getElementById("cf_name").value.trim();
+    const email = document.getElementById("cf_email").value.trim()||null;
+    const phone = document.getElementById("cf_phone").value.trim()||null;
+    const address = document.getElementById("cf_addr").value.trim()||null;
+    const notes = document.getElementById("cf_notes").value.trim()||null;
+    if(!client_name){ toast("Error","Name required"); return; }
+    try{
+      if(id){ await apiFetch(`/clients/${id}`,{method:"PUT",body:{client_name,email,phone,address,notes}}); toast("Saved","Client updated"); }
+      else { await apiFetch(`/clients`,{method:"POST",body:{client_name,email,phone,address,notes}}); toast("Saved","Client created"); }
+      await renderClients();
+    }catch(e2){ toast("Error", e2.message); }
+  };
+
+  viewEl.querySelectorAll('[data-act="edit"]').forEach(b=>b.onclick=()=>loadForm(b.dataset.id));
+  viewEl.querySelectorAll('[data-act="del"]').forEach(b=>b.onclick=async ()=>{
+    const id = safeInt(b.dataset.id,0); if(!id) return;
+    if(!confirm("Delete this client?")) return;
+    try{ await apiFetch(`/clients/${id}`,{method:"DELETE"}); toast("Deleted","Client removed"); await renderClients(); }
+    catch(e3){ toast("Error", e3.message); }
+  });
+
+  resetForm();
+}
+
+async function renderVendors(){
+  setPage("Vendors","Manage your suppliers");
+  const vendors = await loadVendors();
+  viewEl.innerHTML = `
+    <div class="grid">
+      <div class="card">
+        <div class="hd">
+          <div><h3>Vendors</h3><div class="sub">${vendors.length} vendors</div></div>
+          <button class="btn mini" id="refreshVendors">Refresh</button>
+        </div>
+        <div class="bd">
+          ${vendors.length ? `
+            <table>
+              <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th class="right">Actions</th></tr></thead>
+              <tbody>
+                ${vendors.map(v=>`
+                  <tr>
+                    <td><strong>${esc(v.vendor_name)}</strong><div class="muted" style="font-size:12px">${esc(v.address||"")}</div></td>
+                    <td class="muted">${esc(v.email||"")}</td>
+                    <td class="muted">${esc(v.phone||"")}</td>
+                    <td class="right">
+                      <div class="row-actions">
+                        <button class="btn mini" data-act="edit" data-id="${v.vendor_id}">Edit</button>
+                        <button class="btn mini danger" data-act="del" data-id="${v.vendor_id}">Delete</button>
+                      </div>
+                    </td>
+                  </tr>`).join("")}
+              </tbody>
+            </table>` : `<div class="empty">No vendors yet</div>`}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><h3 id="vendorFormTitle">Add Vendor</h3></div>
+        <div class="bd">
+          <form id="vendorForm">
+            <input type="hidden" id="vf_id" />
+            <div class="field"><label>Name *</label><input id="vf_name" required /></div>
+            <div class="field"><label>Email</label><input id="vf_email" type="email" /></div>
+            <div class="two-col">
+              <div class="field"><label>Phone</label><input id="vf_phone" /></div>
+              <div class="field"><label>Address</label><input id="vf_addr" /></div>
+            </div>
+            <div class="field"><label>Notes</label><textarea id="vf_notes"></textarea></div>
+            <div class="split" style="justify-content:flex-end;margin-top:10px;">
+              <button type="button" class="btn ghost" id="vf_cancel" style="display:none;">Cancel</button>
+              <button class="btn primary" type="submit">Save</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+
+  function resetForm(){
+    document.getElementById("vendorFormTitle").textContent="Add Vendor";
+    document.getElementById("vf_id").value="";
+    document.getElementById("vf_name").value="";
+    document.getElementById("vf_email").value="";
+    document.getElementById("vf_phone").value="";
+    document.getElementById("vf_addr").value="";
+    document.getElementById("vf_notes").value="";
+    document.getElementById("vf_cancel").style.display="none";
+  }
+  function loadForm(id){
+    const v = state.vendors.find(x=>Number(x.vendor_id)===Number(id));
+    if(!v) return;
+    document.getElementById("vendorFormTitle").textContent="Edit Vendor";
+    document.getElementById("vf_id").value=v.vendor_id;
+    document.getElementById("vf_name").value=v.vendor_name||"";
+    document.getElementById("vf_email").value=v.email||"";
+    document.getElementById("vf_phone").value=v.phone||"";
+    document.getElementById("vf_addr").value=v.address||"";
+    document.getElementById("vf_notes").value=v.notes||"";
+    document.getElementById("vf_cancel").style.display="inline-flex";
+  }
+
+  document.getElementById("refreshVendors").onclick=()=>renderVendors();
+  document.getElementById("vf_cancel").onclick=resetForm;
+
+  document.getElementById("vendorForm").onsubmit=async (e)=>{
+    e.preventDefault();
+    const id = safeInt(document.getElementById("vf_id").value,0);
+    const vendor_name = document.getElementById("vf_name").value.trim();
+    const email = document.getElementById("vf_email").value.trim()||null;
+    const phone = document.getElementById("vf_phone").value.trim()||null;
+    const address = document.getElementById("vf_addr").value.trim()||null;
+    const notes = document.getElementById("vf_notes").value.trim()||null;
+    if(!vendor_name){ toast("Error","Name required"); return; }
+    try{
+      if(id){ await apiFetch(`/vendors/${id}`,{method:"PUT",body:{vendor_name,email,phone,address,notes}}); toast("Saved","Vendor updated"); }
+      else { await apiFetch(`/vendors`,{method:"POST",body:{vendor_name,email,phone,address,notes}}); toast("Saved","Vendor created"); }
+      await renderVendors();
+    }catch(e2){ toast("Error", e2.message); }
+  };
+
+  viewEl.querySelectorAll('[data-act="edit"]').forEach(b=>b.onclick=()=>loadForm(b.dataset.id));
+  viewEl.querySelectorAll('[data-act="del"]').forEach(b=>b.onclick=async ()=>{
+    const id = safeInt(b.dataset.id,0); if(!id) return;
+    if(!confirm("Delete this vendor?")) return;
+    try{ await apiFetch(`/vendors/${id}`,{method:"DELETE"}); toast("Deleted","Vendor removed"); await renderVendors(); }
+    catch(e3){ toast("Error", e3.message); }
+  });
+
+  resetForm();
+}
+
+async function renderSales(){
+  setPage("Sales","Create sales");
+  const [sales, saleDetails, clients, inventory] = await Promise.all([
+    loadSales(),
+    loadSaleDetails(),
+    loadClients(),
+    loadInventory()
+  ]);
+  const invMap = Object.fromEntries(inventory.map(i=>[i.item_id,i]));
+  viewEl.innerHTML = `
+    <div class="grid">
+      <div class="card">
+        <div class="hd">
+          <div><h3>Sales</h3><div class="sub">${sales.length} records</div></div>
+          <button class="btn mini" id="refreshSales">Refresh</button>
+        </div>
+        <div class="bd">
+          ${sales.length ? `
+            <table>
+              <thead><tr><th>Sale</th><th>Client</th><th>Date</th><th class="right">Actions</th></tr></thead>
+              <tbody>
+                ${sales.map(s=>`
+                  <tr>
+                    <td><strong>#${esc(s.sale_id)}</strong><div class="muted" style="font-size:12px">${esc(s.sale_notes||"")}</div></td>
+                    <td class="muted">${esc(s.client_name||"Walk-in")}</td>
+                    <td class="muted">${when(s.sale_date)}</td>
+                    <td class="right">
+                      <div class="row-actions">
+                        <button class="btn mini danger" data-act="del" data-id="${s.sale_id}">Delete</button>
+                      </div>
+                    </td>
+                  </tr>`).join("")}
+              </tbody>
+            </table>` : `<div class="empty">No sales yet</div>`}
+          <div class="hr"></div>
+          <div class="muted" style="font-size:12px;margin-bottom:6px;">Recent line items</div>
+          ${saleDetails.length ? `
+            <table>
+              <thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Client</th></tr></thead>
+              <tbody>
+                ${saleDetails.slice(0,6).map(d=>`
+                  <tr>
+                    <td>${esc(d.item_name)}</td>
+                    <td class="muted">${esc(d.quantity)}</td>
+                    <td class="muted">€${money(d.unit_price)}</td>
+                    <td class="muted">${esc(d.client_name||"Walk-in")}</td>
+                  </tr>`).join("")}
+              </tbody>
+            </table>` : `<div class="empty">No sale items</div>`}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><h3>New Sale</h3></div>
+        <div class="bd">
+          <form id="saleForm">
+            <div class="field">
+              <label>Client</label>
+              <select id="sale_client">
+                <option value="">Walk-in / none</option>
+                ${clients.map(c=>`<option value="${c.client_id}">${esc(c.client_name)}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field"><label>Notes</label><textarea id="sale_notes"></textarea></div>
+            <div class="field"><label>Items *</label></div>
+            <div class="line-items" id="saleItems"></div>
+            <button type="button" class="btn mini" id="saleAddItem">+ Add Item</button>
+            <div class="split" style="justify-content:flex-end;margin-top:12px;">
+              <button class="btn primary" type="submit">Save Sale</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const saleItemsEl = document.getElementById("saleItems");
+  function addSaleRow(itemId="", qty=1, price=""){
+    const row = document.createElement("div");
+    row.className="li";
+    row.innerHTML = `
+      <div class="field">
+        <label>Item *</label>
+        <select class="li-item">
+          <option value="">Select item</option>
+          ${inventory.map(i=>`<option value="${i.item_id}" ${Number(itemId)===Number(i.item_id)?"selected":""}>${esc(i.item_name)}</option>`).join("")}
+        </select>
+      </div>
+      <div class="field">
+        <label>Qty *</label>
+        <input type="number" class="li-qty" min="1" value="${qty}" />
+      </div>
+      <div class="field">
+        <label>Price *</label>
+        <input type="number" class="li-price" min="0" step="0.01" value="${price||""}" />
+      </div>
+      <button type="button" class="btn mini danger remove">✕</button>
+    `;
+    saleItemsEl.appendChild(row);
+    const select = row.querySelector(".li-item");
+    const priceInput = row.querySelector(".li-price");
+    select.addEventListener("change",()=>{
+      const it = invMap[Number(select.value)];
+      if(it && !priceInput.value){ priceInput.value = it.unit_price ?? ""; }
+    });
+    row.querySelector(".remove").onclick = ()=>row.remove();
+  }
+
+  document.getElementById("saleAddItem").onclick=()=>addSaleRow();
+  addSaleRow();
+
+  document.getElementById("saleForm").onsubmit=async (e)=>{
+    e.preventDefault();
+    const client_id = safeInt(document.getElementById("sale_client").value,0) || null;
+    const notes = document.getElementById("sale_notes").value.trim()||null;
+    const items = [...saleItemsEl.querySelectorAll(".li")].map(row=>{
+      const item_id = safeInt(row.querySelector(".li-item").value,0);
+      const quantity = safeInt(row.querySelector(".li-qty").value,0);
+      const unit_price = safeFloat(row.querySelector(".li-price").value,0);
+      return { item_id, quantity, unit_price, notes:null };
+    }).filter(x=>x.item_id && x.quantity>0 && x.unit_price>0);
+    if(!items.length){ toast("Error","Add at least one valid item"); return; }
+    try{
+      await apiFetch(`/sales`,{method:"POST",body:{client_id, notes, items}});
+      toast("Saved","Sale created");
+      await loadInventory();
+      await renderSales();
+    }catch(e2){ toast("Error", e2.message); }
+  };
+
+  viewEl.querySelectorAll('[data-act="del"]').forEach(b=>b.onclick=async ()=>{
+    const id = safeInt(b.dataset.id,0); if(!id) return;
+    if(!confirm("Delete this sale?")) return;
+    try{ await apiFetch(`/sales/${id}`,{method:"DELETE"}); toast("Deleted","Sale removed"); await loadInventory(); await renderSales(); }
+    catch(e3){ toast("Error", e3.message); }
+  });
+
+  document.getElementById("refreshSales").onclick=()=>renderSales();
+}
+
+async function renderSupply(){
+  setPage("Supply Orders","Receive stock");
+  const [orders, supplyDetails, vendors, inventory] = await Promise.all([
+    loadSupply(),
+    loadSupplyDetails(),
+    loadVendors(),
+    loadInventory()
+  ]);
+  const invMap = Object.fromEntries(inventory.map(i=>[i.item_id,i]));
+
+  viewEl.innerHTML = `
+    <div class="grid">
+      <div class="card">
+        <div class="hd">
+          <div><h3>Supply Orders</h3><div class="sub">${orders.length} records</div></div>
+          <button class="btn mini" id="refreshSupply">Refresh</button>
+        </div>
+        <div class="bd">
+          ${orders.length ? `
+            <table>
+              <thead><tr><th>Order</th><th>Vendor</th><th>Date</th><th class="right">Actions</th></tr></thead>
+              <tbody>
+                ${orders.map(o=>`
+                  <tr>
+                    <td><strong>#${esc(o.supply_order_id)}</strong><div class="muted" style="font-size:12px">${esc(o.order_notes||"")}</div></td>
+                    <td class="muted">${esc(o.vendor_name||"Unassigned")}</td>
+                    <td class="muted">${when(o.order_date)}</td>
+                    <td class="right">
+                      <div class="row-actions">
+                        <button class="btn mini danger" data-act="del" data-id="${o.supply_order_id}">Delete</button>
+                      </div>
+                    </td>
+                  </tr>`).join("")}
+              </tbody>
+            </table>` : `<div class="empty">No supply orders yet</div>`}
+          <div class="hr"></div>
+          <div class="muted" style="font-size:12px;margin-bottom:6px;">Recent items</div>
+          ${supplyDetails.length ? `
+            <table>
+              <thead><tr><th>Item</th><th>Qty</th><th>Cost</th><th>Vendor</th></tr></thead>
+              <tbody>
+                ${supplyDetails.slice(0,6).map(d=>`
+                  <tr>
+                    <td>${esc(d.item_name)}</td>
+                    <td class="muted">${esc(d.quantity)}</td>
+                    <td class="muted">€${money(d.cost_price)}</td>
+                    <td class="muted">${esc(d.vendor_name||"Unassigned")}</td>
+                  </tr>`).join("")}
+              </tbody>
+            </table>` : `<div class="empty">No supply items</div>`}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><h3>New Supply Order</h3></div>
+        <div class="bd">
+          <form id="supplyForm">
+            <div class="field">
+              <label>Vendor</label>
+              <select id="sup_vendor">
+                <option value="">Unassigned</option>
+                ${vendors.map(v=>`<option value="${v.vendor_id}">${esc(v.vendor_name)}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field"><label>Notes</label><textarea id="sup_notes"></textarea></div>
+            <div class="field"><label>Items *</label></div>
+            <div class="line-items" id="supItems"></div>
+            <button type="button" class="btn mini" id="supAddItem">+ Add Item</button>
+            <div class="split" style="justify-content:flex-end;margin-top:12px;">
+              <button class="btn primary" type="submit">Save Supply</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const supItemsEl = document.getElementById("supItems");
+  function addSupplyRow(itemId="", qty=1, cost=""){
+    const row = document.createElement("div");
+    row.className="li";
+    row.innerHTML = `
+      <div class="field">
+        <label>Item *</label>
+        <select class="li-item">
+          <option value="">Select item</option>
+          ${inventory.map(i=>`<option value="${i.item_id}" ${Number(itemId)===Number(i.item_id)?"selected":""}>${esc(i.item_name)}</option>`).join("")}
+        </select>
+      </div>
+      <div class="field">
+        <label>Qty *</label>
+        <input type="number" class="li-qty" min="1" value="${qty}" />
+      </div>
+      <div class="field">
+        <label>Cost *</label>
+        <input type="number" class="li-price" min="0" step="0.01" value="${cost||""}" />
+      </div>
+      <button type="button" class="btn mini danger remove">✕</button>
+    `;
+    supItemsEl.appendChild(row);
+    const select = row.querySelector(".li-item");
+    const costInput = row.querySelector(".li-price");
+    select.addEventListener("change",()=>{
+      const it = invMap[Number(select.value)];
+      if(it && !costInput.value){ costInput.value = it.unit_price ?? ""; }
+    });
+    row.querySelector(".remove").onclick = ()=>row.remove();
+  }
+
+  document.getElementById("supAddItem").onclick=()=>addSupplyRow();
+  addSupplyRow();
+
+  document.getElementById("supplyForm").onsubmit=async (e)=>{
+    e.preventDefault();
+    const vendor_id = safeInt(document.getElementById("sup_vendor").value,0) || null;
+    const notes = document.getElementById("sup_notes").value.trim()||null;
+    const items = [...supItemsEl.querySelectorAll(".li")].map(row=>{
+      const item_id = safeInt(row.querySelector(".li-item").value,0);
+      const quantity = safeInt(row.querySelector(".li-qty").value,0);
+      const cost_price = safeFloat(row.querySelector(".li-price").value,0);
+      return { item_id, quantity, cost_price, notes:null };
+    }).filter(x=>x.item_id && x.quantity>0 && x.cost_price>0);
+    if(!items.length){ toast("Error","Add at least one valid item"); return; }
+    try{
+      await apiFetch(`/supply`,{method:"POST",body:{vendor_id, notes, items}});
+      toast("Saved","Supply order created");
+      await loadInventory();
+      await renderSupply();
+    }catch(e2){ toast("Error", e2.message); }
+  };
+
+  viewEl.querySelectorAll('[data-act="del"]').forEach(b=>b.onclick=async ()=>{
+    const id = safeInt(b.dataset.id,0); if(!id) return;
+    if(!confirm("Delete this supply order?")) return;
+    try{ await apiFetch(`/supply/${id}`,{method:"DELETE"}); toast("Deleted","Supply order removed"); await loadInventory(); await renderSupply(); }
+    catch(e3){ toast("Error", e3.message); }
+  });
+
+  document.getElementById("refreshSupply").onclick=()=>renderSupply();
+}
 
 async function renderReports(){
   setPage("Reports","Analytics");
