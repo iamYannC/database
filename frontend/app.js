@@ -65,11 +65,6 @@ function updateLanguage() {
     btn.innerHTML = `<span class="icon">${iconChar}</span>${t(`nav_${view}`)}`;
   });
 
-  const serverLabel = document.querySelector("#serverHint")?.previousSibling;
-  if (serverLabel && serverLabel.nodeType === Node.TEXT_NODE) {
-    serverLabel.textContent = `${t("footer_server")}: `;
-  }
-
   const exportBtn = document.getElementById("exportBtn");
   if (exportBtn) {
     // FIX: Update the tooltip only. Do NOT touch textContent (preserves the SVG icon)

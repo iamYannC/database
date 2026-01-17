@@ -180,9 +180,6 @@ const translations = {
     status_api_ready: "API Ready",
     status_api_offline: "API Offline",
     
-    // Footer
-    footer_server: "Server",
-    
     // Field labels (with asterisks)
     field_required: "*",
     field_optional: "",
@@ -378,8 +375,6 @@ const translations = {
     status_api_ready: "API prête",
     status_api_offline: "API hors ligne",
     
-    // Footer
-    footer_server: "Serveur",
     
     // Field labels
     field_required: "*",
