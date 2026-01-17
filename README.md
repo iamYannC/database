@@ -21,15 +21,13 @@ inventory-app/
 ├── frontend/
 │   ├── index.html
 │   ├── app.js
+│   ├── i18n.js
 │   └── styles.css
 ├── database/
 │   ├── schema.sql
-│   ├── views_sql.sql
+│   ├── views.sql
 │   ├── deploy.sh
 │   └── inventory.db
-├── archive/
-│   └── R
-├── project structure
 └── README.md
 ```
 
@@ -110,6 +108,11 @@ npm start
 ```
 
 The server will start on **http://localhost:3000**
+
+## Frontend i18n
+
+- Translations live in `frontend/i18n.js` and are loaded before `frontend/app.js`.
+- The language toggle in the sidebar updates the UI instantly and persists the preference in `localStorage`.
 
 ## API Documentation
 

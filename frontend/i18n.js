@@ -194,11 +194,11 @@ const translations = {
     ph_unit_price: "e.g., 12.50",
     ph_reorder: "e.g., 10",
     ph_notes: "Optional notes",
-    ph_client_name: "e.g., Café Central",
-    ph_email: "contact@example.com",
-    ph_phone: "+31 20 123 4567",
+    ph_client_name: "e.g., Yann Cohen ©",
+    ph_email: "yannco5@gmail.com",
+    ph_phone: "+596 696 66 58 93",
     ph_address: "Street, City, Country",
-    ph_vendor_name: "e.g., Supply Co.",
+    ph_vendor_name: "e.g., Yann Cohen ©",
   },
   
   fr: {
@@ -387,16 +387,16 @@ const translations = {
     
     // Placeholders
     ph_search: "Rechercher dans l'inventaire...",
-    ph_item_name: "ex., Grains de café 1kg",
+    ph_item_name: "ex., Yann Cohen ©",
     ph_description: "Description optionnelle",
     ph_unit_price: "ex., 12,50",
     ph_reorder: "ex., 10",
     ph_notes: "Notes optionnelles",
     ph_client_name: "ex., Café Central",
-    ph_email: "contact@exemple.fr",
-    ph_phone: "+33 1 23 45 67 89",
+    ph_email: "yannco5@gmail.com",
+    ph_phone: "+596 696 66 58 93",
     ph_address: "Rue, Ville, Pays",
-    ph_vendor_name: "ex., Société d'approvisionnement",
+    ph_vendor_name: "ex., Yann Cohen ©",
   }
 };
 
