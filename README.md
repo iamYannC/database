@@ -2,8 +2,6 @@
 
 ## Directory Structure
 
-Your project should be organized like this:
-
 ```
 inventory-app/
 ├── backend/
@@ -35,8 +33,6 @@ inventory-app/
 
 ### 1. Install Node.js
 
-If you don't have Node.js installed:
-
 ```bash
 # Ubuntu/Debian
 sudo apt update
@@ -47,23 +43,7 @@ node --version  # Should be v16+
 npm --version
 ```
 
-### 2. Create Project Structure
-
-```bash
-# Create directories
-mkdir -p backend/routes
-mkdir -p frontend
-mkdir -p database
-
-# Move files to correct locations
-mv schema.sql database/
-mv views.sql database/
-mv deploy.sh database/
-mv inventory.db database/
-mv index.html frontend/
-```
-
-### 3. Install Backend Dependencies
+### 2. Install Backend Dependencies
 
 ```bash
 cd backend
@@ -76,9 +56,7 @@ This will install:
 - `cors` - Enable cross-origin requests
 - `nodemon` - Auto-restart on file changes (dev only)
 
-### 4. Verify Database
-
-Make sure your database exists and has the schema:
+### 3. Verify Database
 
 ```bash
 cd ../database
@@ -281,7 +259,7 @@ You should see:
 
 ## Database Triggers
 
-The backend respects your SQLite triggers:
+The backend respects SQLite triggers:
 
 ✅ **Sales automatically decrease inventory**
 - When you POST to `/api/sales`, triggers update inventory quantities
@@ -305,7 +283,7 @@ npm install
 
 ### Error: "ENOENT: no such file or directory"
 
-Make sure your directory structure is correct and `inventory.db` is in the `database/` folder.
+Make sure the directory structure is correct and `inventory.db` is in the `database/` folder.
 
 ### Database is locked
 
@@ -329,7 +307,7 @@ PORT=3001 npm start
 
 ## Production Deployment
 
-For production, you might want to:
+For production, Consider:
 
 1. **Use PM2 for process management:**
 ```bash

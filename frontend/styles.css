@@ -252,6 +252,13 @@
       outline:none;
       font-size: 14px;
     }
+
+    .field select option {
+      background-color: var(--panel2); /* Forces dark background */
+      color: var(--text);              /* Keeps light text */
+    }
+
+
     .field textarea{ min-height: 80px; resize: vertical; }
     .hint{ color: var(--muted); font-size: 12px; margin-top: 2px; }
     .line-items{
