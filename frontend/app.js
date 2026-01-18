@@ -70,8 +70,6 @@ function updateLanguage() {
     // FIX: Update the tooltip only. Do NOT touch textContent (preserves the SVG icon)
     exportBtn.title = t("btn_export");
   }
-  const reconnectBtn = document.getElementById("reconnectBtn");
-  if (reconnectBtn) reconnectBtn.textContent = t("btn_reconnect");
   const searchInput = document.getElementById("globalSearch");
   if (searchInput) searchInput.placeholder = t("ph_search");
 
@@ -156,11 +154,6 @@ async function refreshHealth() {
     if (el) el.textContent = t("status_api_offline");
   }
 }
-
-document.getElementById("reconnectBtn").onclick = async () => {
-  await refreshHealth();
-  toast(t("msg_status"), document.getElementById("dbStatus").textContent);
-};
 
 // ---- Views
 const viewEl = document.getElementById("view");

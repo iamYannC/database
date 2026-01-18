@@ -12,11 +12,11 @@ const translations = {
     nav_supply: "Supply Orders",
     nav_sales: "Sales",
     nav_reports: "Reports",
-    
+
     // Brand
     brand_title: "Inventory System",
     brand_subtitle: "Supply • Sell • Manage",
-    
+
     // Common buttons
     btn_add: "+ Add",
     btn_edit: "Edit",
@@ -25,9 +25,8 @@ const translations = {
     btn_cancel: "Cancel",
     btn_refresh: "Refresh",
     btn_export: "Export Excel",
-    btn_reconnect: "Reconnect",
     btn_remove: "Remove",
-    
+
     // Dashboard
     dash_title: "Dashboard",
     dash_subtitle: "Overview at a glance",
@@ -42,7 +41,7 @@ const translations = {
     dash_recent_supply: "Recent Supply",
     dash_view_inventory: "View Inventory",
     dash_walk_in: "Walk-in",
-    
+
     // Inventory
     inv_title: "Inventory",
     inv_subtitle: "Manage your products",
@@ -58,7 +57,7 @@ const translations = {
     inv_quantity: "Qty",
     inv_price: "Price",
     inv_actions: "Actions",
-    
+
     // Clients
     cli_title: "Clients",
     cli_subtitle: "Manage your customers",
@@ -70,7 +69,7 @@ const translations = {
     cli_phone: "Phone",
     cli_address: "Address",
     cli_notes: "Notes",
-    
+
     // Vendors
     ven_title: "Vendors",
     ven_subtitle: "Manage your suppliers",
@@ -82,7 +81,7 @@ const translations = {
     ven_phone: "Phone",
     ven_address: "Address",
     ven_notes: "Notes",
-    
+
     // Sales
     sal_title: "Sales",
     sal_subtitle: "Create sales",
@@ -101,7 +100,7 @@ const translations = {
     sal_price: "Price",
     sal_date: "Date",
     sal_recent_items: "Recent line items",
-    
+
     // Supply
     sup_title: "Supply Orders",
     sup_subtitle: "Receive stock",
@@ -120,7 +119,7 @@ const translations = {
     sup_cost: "Cost",
     sup_date: "Date",
     sup_recent_items: "Recent items",
-    
+
     // Reports
     rep_title: "Reports",
     rep_subtitle: "Analytics",
@@ -132,7 +131,7 @@ const translations = {
     rep_sales_revenue: "Sales Revenue",
     rep_supply_cost: "Supply Cost",
     rep_gross_margin: "Gross Margin",
-    
+
     // Messages
     msg_no_items: "No items",
     msg_no_clients: "No clients yet",
@@ -174,16 +173,16 @@ const translations = {
     msg_exporting: "Exporting...",
     msg_status: "Status",
     msg_language: "Language",
-    
+
     // Status labels
     status_api_connected: "API Connected",
     status_api_ready: "API Ready",
     status_api_offline: "API Offline",
-    
+
     // Field labels (with asterisks)
     field_required: "*",
     field_optional: "",
-    
+
     // Placeholders
     ph_search: "Search inventory...",
     ph_item_name: "e.g., Coffee Beans 1kg",
@@ -197,7 +196,7 @@ const translations = {
     ph_address: "Street, City, Country",
     ph_vendor_name: "e.g., Yann Cohen ©",
   },
-  
+
   fr: {
     // Navigation
     nav_dashboard: "Tableau de bord",
@@ -207,11 +206,11 @@ const translations = {
     nav_supply: "Approvisionnements",
     nav_sales: "Ventes",
     nav_reports: "Rapports",
-    
+
     // Brand
     brand_title: "Système d'inventaire",
     brand_subtitle: "Approvisionner • Vendre • Gérer",
-    
+
     // Common buttons
     btn_add: "+ Ajouter",
     btn_edit: "Modifier",
@@ -220,9 +219,8 @@ const translations = {
     btn_cancel: "Annuler",
     btn_refresh: "Actualiser",
     btn_export: "Exporter Excel",
-    btn_reconnect: "Reconnecter",
     btn_remove: "Retirer",
-    
+
     // Dashboard
     dash_title: "Tableau de bord",
     dash_subtitle: "Vue d'ensemble",
@@ -237,7 +235,7 @@ const translations = {
     dash_recent_supply: "Approvisionnements récents",
     dash_view_inventory: "Voir l'inventaire",
     dash_walk_in: "Sans rendez-vous",
-    
+
     // Inventory
     inv_title: "Inventaire",
     inv_subtitle: "Gérer vos produits",
@@ -253,7 +251,7 @@ const translations = {
     inv_quantity: "Qté",
     inv_price: "Prix",
     inv_actions: "Actions",
-    
+
     // Clients
     cli_title: "Clients",
     cli_subtitle: "Gérer vos clients",
@@ -265,7 +263,7 @@ const translations = {
     cli_phone: "Téléphone",
     cli_address: "Adresse",
     cli_notes: "Notes",
-    
+
     // Vendors
     ven_title: "Fournisseurs",
     ven_subtitle: "Gérer vos fournisseurs",
@@ -277,7 +275,7 @@ const translations = {
     ven_phone: "Téléphone",
     ven_address: "Adresse",
     ven_notes: "Notes",
-    
+
     // Sales
     sal_title: "Ventes",
     sal_subtitle: "Créer des ventes",
@@ -296,7 +294,7 @@ const translations = {
     sal_price: "Prix",
     sal_date: "Date",
     sal_recent_items: "Derniers articles",
-    
+
     // Supply
     sup_title: "Approvisionnements",
     sup_subtitle: "Réceptionner le stock",
@@ -315,7 +313,7 @@ const translations = {
     sup_cost: "Coût",
     sup_date: "Date",
     sup_recent_items: "Articles récents",
-    
+
     // Reports
     rep_title: "Rapports",
     rep_subtitle: "Analyses",
@@ -327,7 +325,7 @@ const translations = {
     rep_sales_revenue: "Revenu des ventes",
     rep_supply_cost: "Coût d'approvisionnement",
     rep_gross_margin: "Marge brute",
-    
+
     // Messages
     msg_no_items: "Aucun article",
     msg_no_clients: "Aucun client",
@@ -369,17 +367,17 @@ const translations = {
     msg_exporting: "Exportation...",
     msg_status: "Statut",
     msg_language: "Langue",
-    
+
     // Status labels
     status_api_connected: "API connectée",
     status_api_ready: "API prête",
     status_api_offline: "API hors ligne",
-    
-    
+
+
     // Field labels
     field_required: "*",
     field_optional: "",
-    
+
     // Placeholders
     ph_search: "Rechercher dans l'inventaire...",
     ph_item_name: "ex., Yann Cohen ©",
