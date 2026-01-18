@@ -1,0 +1,22 @@
+<svg id="logoRoot" width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="42" y2="42" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1B2436"/><stop offset="1" stop-color="#0F1730"/></linearGradient>
+    <linearGradient id="g2" x1="0" y1="0" x2="42" y2="42" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity=".15"/><stop offset="1" stop-color="#fff" stop-opacity=".02"/></linearGradient>
+    <linearGradient id="g3" x1="21" y1="12" x2="21" y2="30" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#6AA6FF"/><stop offset="1" stop-color="#3DDC97"/></linearGradient>
+    <filter id="f1" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/></filter>
+  </defs>
+  <rect width="42" height="42" rx="12" fill="url(#g1)"/>
+  <rect x=".5" y=".5" width="41" height="41" rx="11.5" stroke="url(#g2)"/>
+  
+  <g filter="url(#f1)">
+    <rect x="11" y="20" width="5" height="10" rx="2" fill="url(#g3)">
+      <animate attributeName="height" values="10;18" dur="0.2s" begin="logoRoot.mouseenter" end="logoRoot.mouseleave" fill="freeze"/>
+      <animate attributeName="y" values="20;12" dur="0.2s" begin="logoRoot.mouseenter" end="logoRoot.mouseleave" fill="freeze"/>
+    </rect>
+    <rect x="18.5" y="12" width="5" height="18" rx="2" fill="url(#g3)">
+      <animate attributeName="height" values="18;10" dur="0.2s" begin="logoRoot.mouseenter" end="logoRoot.mouseleave" fill="freeze"/>
+      <animate attributeName="y" values="12;20" dur="0.2s" begin="logoRoot.mouseenter" end="logoRoot.mouseleave" fill="freeze"/>
+    </rect>
+    <rect x="26" y="16" width="5" height="14" rx="2" fill="url(#g3)"/>
+  </g>
+</svg>
